@@ -2,17 +2,19 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   HostListener,
-  inject,
   input,
+  signal,
   viewChild,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 
-import type { PillarStepKey } from '../../../core/models/database.types';
+import type { PillarFocusTimeframe, PillarStepKey } from '../../../core/models/database.types';
 import { PILLAR_FOCUS_TIMEFRAME_OPTIONS } from '../../../core/supabase/enum-options';
 import { EnumPillSelectComponent } from '../../../shared/components/enum-pill-select/enum-pill-select.component';
 import { TaggedNotesEditorComponent } from '../../../shared/components/tagged-notes-editor/tagged-notes-editor.component';
+import { pillarFocusLabel } from '../pillar-context.utils';
 import { readImageFromClipboardEvent } from '../screenshot-upload.utils';
 import { JournalScreenshotsPanelComponent } from '../journal-screenshots-panel/journal-screenshots-panel.component';
 
@@ -38,13 +40,31 @@ export class PillarStepPanelComponent {
   readonly pasteActive = input(false);
 
   protected readonly focusTimeframeOptions = PILLAR_FOCUS_TIMEFRAME_OPTIONS;
+  protected readonly focusTimeframe = signal<PillarFocusTimeframe>('M15');
 
   protected readonly screenshotScope = computed(() => ({
     kind: 'pillar' as const,
     id: this.stepKey(),
   }));
 
+  protected readonly focusLabel = computed(() => pillarFocusLabel(this.focusTimeframe()));
+
   private readonly screenshotsPanel = viewChild(JournalScreenshotsPanelComponent);
+
+  constructor() {
+    effect((onCleanup) => {
+      const control = this.stepGroup().get('focus_timeframe');
+      if (!control) {
+        return;
+      }
+
+      this.focusTimeframe.set((control.value as PillarFocusTimeframe | null) ?? 'M15');
+      const sub = control.valueChanges.subscribe((value) => {
+        this.focusTimeframe.set((value as PillarFocusTimeframe | null) ?? 'M15');
+      });
+      onCleanup(() => sub.unsubscribe());
+    });
+  }
 
   @HostListener('document:paste', ['$event'])
   protected onDocumentPaste(event: ClipboardEvent): void {

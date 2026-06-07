@@ -1,6 +1,7 @@
 <section class="pillar-panel" [formGroup]="stepGroup()">
   <header class="pillar-panel__header">
     <h3 class="pillar-panel__title">{{ stepTitle() }}</h3>
+    <p class="pillar-panel__focus-badge">Focus: {{ focusLabel() }}</p>
   </header>
 
   <div class="pillar-panel__section">
@@ -13,15 +14,11 @@
     />
   </div>
 
-  <div class="pillar-panel__section pillar-panel__section--fields">
-    <ng-content />
-  </div>
-
   <div class="pillar-panel__section">
     <app-journal-screenshots-panel
       [scope]="screenshotScope()"
       [fileInputId]="'pillar-shots-' + stepKey()"
-        [title]="'Chart screenshots'"
+      [title]="'Chart screenshots'"
       uploadHint="Upload the chart for this pillar at your selected focus timeframe."
     />
   </div>

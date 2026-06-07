@@ -18,6 +18,15 @@
     color: #f3f4f6;
   }
 
+  &__focus-badge {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #34d399;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   &__section {
     display: grid;
     gap: 0.5rem;

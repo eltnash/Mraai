@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   inject,
@@ -72,6 +73,7 @@ const PILLAR_STEP_LABELS: Record<ExecutionPillarStepKey, string> = {
 })
 export class GatekeeperWizardComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly screenshotDrafts = inject(GatekeeperScreenshotDraftService);
 
   readonly pillarsChange = output<{
@@ -297,20 +299,31 @@ export class GatekeeperWizardComponent {
     return options.find((option) => option.value === value)?.hint ?? '';
   }
 
+  protected goToStep(stepNumber: number): void {
+    this.activeStep.set(stepNumber);
+    this.cdr.markForCheck();
+  }
+
   protected goNext(): void {
     const key = this.currentStep().key;
     this.stepGroup(key).markAllAsTouched();
+    if (key === 'location') {
+      this.form.controls.is_retest.markAsTouched();
+    }
     if (!this.isStepValid(key)) {
+      this.cdr.markForCheck();
       return;
     }
     if (this.activeStep() < this.stepCount) {
       this.activeStep.update((n) => n + 1);
+      this.cdr.markForCheck();
     }
   }
 
   protected goBack(): void {
     if (this.activeStep() > 1) {
       this.activeStep.update((n) => n - 1);
+      this.cdr.markForCheck();
     }
   }
 
