@@ -1,11 +1,11 @@
 <section class="journal-panel" [formGroup]="journalGroup()">
   <header class="journal-panel__header">
     <h3 class="journal-panel__title">{{ title() }}</h3>
-    <p class="journal-panel__intro">Upload your chart for this timeframe, describe what you see, and annotate if needed.</p>
+    <p class="journal-panel__intro">Upload or paste your chart for this timeframe, describe what you see, and annotate if needed.</p>
   </header>
 
   <div class="journal-panel__screenshot">
-    <label class="journal-panel__label">Chart screenshot</label>
+    <span class="journal-panel__label">Chart screenshot</span>
 
     @if (uploadError(); as error) {
       <p-message severity="error" [text]="error" />
@@ -18,7 +18,7 @@
         </button>
         <div class="journal-panel__actions">
           <p-button type="button" label="Annotate" icon="pi pi-pencil" (onClick)="openAnnotator()" />
-          <p-button type="button" label="Replace" icon="pi pi-upload" [text]="true" severity="secondary" (onClick)="openFilePicker()" />
+          <p-button type="button" label="Replace file" icon="pi pi-upload" (onClick)="openFilePicker()" />
           <p-button type="button" label="Remove" icon="pi pi-trash" [text]="true" severity="danger" (onClick)="removeScreenshot()" />
         </div>
         @if (draft.isAnnotated) {
@@ -26,18 +26,42 @@
         }
       </div>
     } @else {
-      <button type="button" class="journal-panel__upload" (click)="openFilePicker()">
-        <i class="pi pi-image"></i>
-        <span>Upload chart screenshot</span>
-        <small>PNG, JPEG, WebP · max 5 MB</small>
-      </button>
+      <div
+        class="journal-panel__upload-zone"
+        [class.journal-panel__upload-zone--dragging]="dragging()"
+        (dragenter)="onDragEnter($event)"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <div class="journal-panel__upload-body">
+          <i class="pi pi-image journal-panel__upload-icon"></i>
+          <p class="journal-panel__upload-title">Add a chart screenshot</p>
+          <p class="journal-panel__upload-hint">Drag an image here, choose a file, or paste from your clipboard.</p>
+
+          <div class="journal-panel__upload-actions">
+            <p-button type="button" label="Choose file" icon="pi pi-folder-open" (onClick)="openFilePicker()" />
+            <p-button
+              type="button"
+              label="Paste screenshot"
+              icon="pi pi-copy"
+              severity="secondary"
+              [loading]="pasting()"
+              (onClick)="pasteFromClipboard()"
+            />
+          </div>
+
+          <p class="journal-panel__upload-meta">PNG, JPEG, WebP · max 5 MB · ⌘V works anywhere on this page (except notes)</p>
+        </div>
+      </div>
     }
 
     <input
-      #fileInputRef
+      #fileInput
       type="file"
-      accept="image/png,image/jpeg,image/webp"
-      hidden
+      class="journal-panel__file-input"
+      [id]="fileInputId()"
+      accept="image/png,image/jpeg,image/webp,image/*"
       (change)="onScreenshotSelected($event)"
     />
   </div>

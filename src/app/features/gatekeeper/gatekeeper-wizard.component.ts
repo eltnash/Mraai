@@ -126,6 +126,7 @@ export class GatekeeperWizardComponent {
 
   protected readonly selectedTimeframes = computed((): AnalyzedTimeframe[] => {
     this.formTick();
+    this.screenshotDrafts.revisionSnapshot();
     return this.timeframeKeys.filter(
       (tf) => this.contextGroup().get('analyzed_timeframes')?.get(tf)?.value === true,
     );
@@ -251,6 +252,7 @@ export class GatekeeperWizardComponent {
   }
 
   protected isTimeframeComplete(tf: AnalyzedTimeframe): boolean {
+    this.screenshotDrafts.revisionSnapshot();
     return this.journalGroup(tf).valid && this.screenshotDrafts.hasDraft(tf);
   }
 
