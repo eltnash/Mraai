@@ -8,25 +8,27 @@ import type {
   HtfAuctionRegime,
   MarketBehavior,
   PillarFocusTimeframe,
+  PriorWeekRangePosition,
   TradingTimeframe,
 } from '../../core/models/database.types';
 import type { TaggedNotesValue } from '../../shared/components/tagged-notes-editor/tagged-notes.types';
-
-export interface TimeframeJournalFormValue {
-  notes_content: TaggedNotesValue;
-}
 
 export interface HtfNarrativeFormValue {
   value_migration: string;
   composite_va_position: CompositeValuePosition | null;
   auction_regime: HtfAuctionRegime | null;
+  prior_week_range_position: PriorWeekRangePosition | null;
   tools_used: Record<HtfAnalysisTool, boolean>;
   htf_trade_posture: string;
   session_read: string;
 }
 
-export interface ContextStepValue {
+export interface TimeframeJournalFormValue {
+  notes_content: TaggedNotesValue;
   narrative: HtfNarrativeFormValue;
+}
+
+export interface ContextStepValue {
   analyzed_timeframes: Record<AnalyzedTimeframe, boolean>;
   trading_timeframe: TradingTimeframe;
   timeframe_journals: Record<AnalyzedTimeframe, TimeframeJournalFormValue>;

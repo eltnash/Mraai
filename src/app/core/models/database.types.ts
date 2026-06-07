@@ -74,7 +74,8 @@ export type CompositeValuePosition = 'Above_VA' | 'Below_VA' | 'Inside_VA';
 export type HtfAuctionRegime =
   | 'Breaking_Balance'
   | 'Rotating_Balance'
-  | 'Repairing_Structure';
+  | 'Repairing_Structure'
+  | 'Migrating_To_Composite_POC';
 
 export type MarketStructureBias =
   | 'Bullish_HH_HL'
@@ -89,7 +90,9 @@ export type HtfAnalysisTool =
   | 'Multi_Day_TPO'
   | 'Value_Area_Migration'
   | 'Day_Type_Series'
-  | 'Unfinished_Business';
+  | 'Unfinished_Business'
+  | 'Market_Structure_Trendlines'
+  | 'Prior_Week_HL_Lines';
 
 /** Where the developing week is trading relative to the prior week's candle. */
 export type PriorWeekRangePosition =
@@ -121,21 +124,22 @@ export interface TimeframeJournalEntry {
   notes: string;
   note_tags: JournalNoteTag[];
   screenshots: TimeframeScreenshotRef[];
+  narrative: HtfNarrativeSnapshot;
 }
 
-/** HTF narrative Q&A captured before timeframe chart journals. */
+/** HTF narrative Q&A captured per analyzed timeframe. */
 export interface HtfNarrativeSnapshot {
   value_migration: string;
   composite_va_position: CompositeValuePosition;
   auction_regime: HtfAuctionRegime;
+  prior_week_range_position?: PriorWeekRangePosition | null;
   tools_used: HtfAnalysisTool[];
   htf_trade_posture: string;
-  session_read: string;
+  session_read?: string;
 }
 
 export interface HtfContextSnapshot {
   trading_timeframe: TradingTimeframe;
-  narrative: HtfNarrativeSnapshot;
   timeframe_entries: TimeframeJournalEntry[];
 }
 

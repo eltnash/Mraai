@@ -184,7 +184,7 @@ export const ANALYZED_TIMEFRAME_OPTIONS: CheckboxOption<AnalyzedTimeframe>[] = [
   {
     key: 'W',
     label: 'Weekly',
-    hint: 'Prior week high/low — is the current week inside or breaking that range?',
+    hint: 'Prior week high/low and prior week composite vs the developing week only',
   },
   { key: 'D', label: 'Daily', hint: 'Developing day type & session value' },
   { key: 'H4', label: '4 Hour', hint: 'Intermediate structure & rotations' },
@@ -231,6 +231,11 @@ export const HTF_AUCTION_REGIME_OPTIONS: SelectOption<HtfAuctionRegime>[] = [
     value: 'Repairing_Structure',
     hint: 'Poor highs/lows, single prints, LVNs — market attempting to finish unfinished business',
   },
+  {
+    label: 'Migrating to composite POC',
+    value: 'Migrating_To_Composite_POC',
+    hint: 'Directional trend through LVN or low-volume — price gravitating back toward the composite point of control or major HVN magnet',
+  },
 ];
 
 export const MARKET_STRUCTURE_BIAS_OPTIONS: SelectOption<MarketStructureBias>[] = [
@@ -264,6 +269,16 @@ export const HTF_ANALYSIS_TOOL_OPTIONS: CheckboxOption<HtfAnalysisTool>[] = [
   { key: 'Value_Area_Migration', label: 'Value area migration' },
   { key: 'Day_Type_Series', label: 'Day type series (trend vs balance)' },
   { key: 'Unfinished_Business', label: 'Unfinished business (poor highs/lows, single prints)' },
+  {
+    key: 'Market_Structure_Trendlines',
+    label: 'Market structure trend lines (HH/HL, LH/LL)',
+    hint: 'Diagonal structure lines showing swing progression and control',
+  },
+  {
+    key: 'Prior_Week_HL_Lines',
+    label: 'Prior week high / low lines',
+    hint: 'Vertical or horizontal markers for last week\'s range — inside, above, or below on the open',
+  },
 ];
 
 export const PRIOR_WEEK_RANGE_OPTIONS: SelectOption<PriorWeekRangePosition>[] = [

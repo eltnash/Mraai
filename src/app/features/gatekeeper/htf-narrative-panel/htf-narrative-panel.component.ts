@@ -1,20 +1,23 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TextareaModule } from 'primeng/textarea';
 
+import type { AnalyzedTimeframe } from '../../../core/models/database.types';
 import {
   COMPOSITE_VALUE_POSITION_OPTIONS,
-  HTF_ANALYSIS_TOOL_OPTIONS,
   HTF_AUCTION_REGIME_OPTIONS,
+  HTF_ANALYSIS_TOOL_OPTIONS,
+  PRIOR_WEEK_RANGE_OPTIONS,
 } from '../../../core/supabase/enum-options';
 import { EnumPillSelectComponent } from '../../../shared/components/enum-pill-select/enum-pill-select.component';
 import {
-  HTF_NARRATIVE_BRIDGE,
-  HTF_NARRATIVE_INTRO,
-  HTF_NARRATIVE_TOOLS,
-} from '../htf-narrative.content';
+  timeframeNarrativeConfig,
+  type TimeframeNarrativeFieldConfig,
+  type TimeframeNarrativeFieldKey,
+} from '../htf-timeframe-narrative.config';
+import { timeframeLabel } from '../htf-context.utils';
 
 @Component({
   selector: 'app-htf-narrative-panel',
@@ -30,18 +33,27 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HtfNarrativePanelComponent {
+  readonly timeframe = input.required<AnalyzedTimeframe>();
   readonly narrativeGroup = input.required<FormGroup>();
 
-  protected readonly intro = HTF_NARRATIVE_INTRO;
-  protected readonly toolsReference = HTF_NARRATIVE_TOOLS;
-  protected readonly bridge = HTF_NARRATIVE_BRIDGE;
+  protected readonly config = computed(() => timeframeNarrativeConfig(this.timeframe()));
+  protected readonly timeframeTitle = computed(() => timeframeLabel(this.timeframe()));
 
   protected readonly compositeVaOptions = COMPOSITE_VALUE_POSITION_OPTIONS;
   protected readonly auctionRegimeOptions = HTF_AUCTION_REGIME_OPTIONS;
-  protected readonly toolOptions = HTF_ANALYSIS_TOOL_OPTIONS;
+  protected readonly priorWeekRangeOptions = PRIOR_WEEK_RANGE_OPTIONS;
 
-  protected hasAnswer(controlName: string): boolean {
-    const control = this.narrativeGroup().get(controlName);
+  protected readonly toolOptions = computed(() => {
+    const allowed = new Set(this.config().toolKeys);
+    return HTF_ANALYSIS_TOOL_OPTIONS.filter((tool) => allowed.has(tool.key));
+  });
+
+  protected fieldInputId(field: TimeframeNarrativeFieldConfig): string {
+    return `htf-${this.timeframe()}-${field.key}`;
+  }
+
+  protected hasAnswer(key: TimeframeNarrativeFieldKey): boolean {
+    const control = this.narrativeGroup().get(key);
     if (!control) {
       return false;
     }
@@ -61,17 +73,17 @@ export class HtfNarrativePanelComponent {
     return Object.values(group.controls).some((control) => control.value === true);
   }
 
-  protected clearAnswer(controlName: string): void {
+  protected clearAnswer(key: TimeframeNarrativeFieldKey): void {
     const group = this.narrativeGroup();
-    const control = group.get(controlName);
+    const control = group.get(key);
     if (!control) {
       return;
     }
 
-    if (controlName === 'tools_used') {
+    if (key === 'tools_used') {
       const toolsGroup = control as FormGroup;
-      Object.keys(toolsGroup.controls).forEach((key) => {
-        toolsGroup.get(key)?.setValue(false);
+      Object.keys(toolsGroup.controls).forEach((toolKey) => {
+        toolsGroup.get(toolKey)?.setValue(false);
       });
     } else if (typeof control.value === 'string') {
       control.setValue('');

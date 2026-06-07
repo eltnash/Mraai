@@ -22,18 +22,9 @@
     @switch (activeStep()) {
       @case (1) {
         <section class="gatekeeper-form__panel" formGroupName="context">
-          <app-htf-narrative-panel [narrativeGroup]="narrativeGroup()" />
-
-          @if (!narrativeGroup().valid && narrativeGroup().touched) {
-            <p-message
-              severity="warn"
-              text="Complete every HTF narrative question — text answers need at least 20 characters."
-            />
-          }
-
           <p-message
             severity="info"
-            text="HTF chart journal — upload screenshots and tagged notes for each higher timeframe before qualifying execution pillars."
+            text="HTF chart journal — upload screenshots and tagged notes for each higher timeframe. The narrative Q&A below changes with the active timeframe tab."
             styleClass="gatekeeper-form__oath"
           />
 
@@ -62,7 +53,7 @@
           @if (selectedTimeframes().length === 0) {
             <p-message
               severity="warn"
-              text="Select at least one timeframe — each gets its own screenshots and tagged notes."
+              text="Select at least one timeframe — each gets its own screenshots, tagged notes, and narrative Q&A."
             />
           } @else {
             <nav class="gatekeeper-form__tf-tabs" aria-label="Timeframe journal tabs">
@@ -87,6 +78,11 @@
                     [journalGroup]="journalGroup(tf)"
                     [pasteActive]="true"
                   />
+
+                  <app-htf-narrative-panel
+                    [timeframe]="tf"
+                    [narrativeGroup]="narrativeGroup(tf)"
+                  />
                 }
               }
             </div>
@@ -94,7 +90,7 @@
             @if (!isStepValid('context') && contextGroup().touched) {
               <p-message
                 severity="warn"
-                text="Complete the HTF narrative, then ensure each selected timeframe has at least one screenshot and tagged notes (minimum 20 characters)."
+                text="For each selected timeframe, complete the chart journal and narrative Q&A (minimum 20 characters on text answers)."
               />
             }
           }

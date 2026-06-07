@@ -118,7 +118,7 @@ export class GatekeeperWizardComponent {
       number: 1,
       title: 'HTF Context',
       methodology:
-        'Read the HTF auction narrative, answer each question, then journal chart screenshots and tagged notes for each timeframe you are analyzing.',
+        'Select timeframes, journal charts for each tab, then complete that timeframe\'s narrative Q&A before continuing.',
     },
     {
       key: 'auction_type',
@@ -306,8 +306,8 @@ export class GatekeeperWizardComponent {
     return this.stepGroup('context');
   }
 
-  protected narrativeGroup(): FormGroup {
-    return this.contextGroup().get('narrative') as FormGroup;
+  protected narrativeGroup(tf: AnalyzedTimeframe): FormGroup {
+    return this.journalGroup(tf).get('narrative') as FormGroup;
   }
 
   protected auctionTypeGroup(): FormGroup {
@@ -340,9 +340,9 @@ export class GatekeeperWizardComponent {
     if (key === 'context') {
       const selected = this.selectedTimeframes();
       return (
-        this.narrativeGroup().valid &&
         this.stepGroup('context').valid &&
         selected.length > 0 &&
+        selected.every((tf) => this.journalGroup(tf).valid) &&
         this.screenshotDrafts.hasHtfDraftsFor(selected)
       );
     }
@@ -417,7 +417,9 @@ export class GatekeeperWizardComponent {
     const key = this.currentStep().key;
     this.stepGroup(key).markAllAsTouched();
     if (key === 'context') {
-      this.narrativeGroup().markAllAsTouched();
+      this.selectedTimeframes().forEach((tf) => {
+        this.journalGroup(tf).markAllAsTouched();
+      });
     }
     if (key === 'location') {
       this.form.controls.is_retest.markAsTouched();

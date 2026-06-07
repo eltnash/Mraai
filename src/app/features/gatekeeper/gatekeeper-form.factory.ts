@@ -10,13 +10,14 @@ import {
 import type {
   AnalyzedTimeframe,
   AuctionLocation,
+  CompositeValuePosition,
   ConfirmationTrigger,
   DayType,
   HtfAnalysisTool,
   HtfAuctionRegime,
-  CompositeValuePosition,
   MarketBehavior,
   PillarFocusTimeframe,
+  PriorWeekRangePosition,
 } from '../../core/models/database.types';
 import { ANALYZED_TIMEFRAME_KEYS, HTF_ANALYSIS_TOOL_OPTIONS } from '../../core/supabase/enum-options';
 import {
@@ -24,6 +25,10 @@ import {
   taggedNotesPlainText,
 } from '../../shared/components/tagged-notes-editor/tagged-notes.utils';
 import type { TaggedNotesValue } from '../../shared/components/tagged-notes-editor/tagged-notes.types';
+import {
+  narrativeFieldKeysForTimeframe,
+  type TimeframeNarrativeFieldKey,
+} from './htf-timeframe-narrative.config';
 
 const JOURNAL_NOTES_MIN = 20;
 const JOURNAL_NOTES_MAX = 4000;
@@ -99,13 +104,51 @@ function createHtfToolsGroup(fb: FormBuilder) {
 
 function createHtfNarrativeGroup(fb: FormBuilder) {
   return fb.group({
-    value_migration: fb.nonNullable.control('', [narrativeTextValidator()]),
-    composite_va_position: fb.control<CompositeValuePosition | null>(null, Validators.required),
-    auction_regime: fb.control<HtfAuctionRegime | null>(null, Validators.required),
+    value_migration: fb.nonNullable.control(''),
+    composite_va_position: fb.control<CompositeValuePosition | null>(null),
+    auction_regime: fb.control<HtfAuctionRegime | null>(null),
+    prior_week_range_position: fb.control<PriorWeekRangePosition | null>(null),
     tools_used: createHtfToolsGroup(fb),
-    htf_trade_posture: fb.nonNullable.control('', [narrativeTextValidator()]),
-    session_read: fb.nonNullable.control('', [narrativeTextValidator()]),
+    htf_trade_posture: fb.nonNullable.control(''),
+    session_read: fb.nonNullable.control(''),
   });
+}
+
+function applyNarrativeFieldValidators(
+  narrative: FormGroup,
+  enabled: boolean,
+  fieldKeys: readonly TimeframeNarrativeFieldKey[],
+): void {
+  const textFields: TimeframeNarrativeFieldKey[] = [
+    'value_migration',
+    'htf_trade_posture',
+    'session_read',
+  ];
+  const enumFields: TimeframeNarrativeFieldKey[] = [
+    'composite_va_position',
+    'auction_regime',
+    'prior_week_range_position',
+  ];
+
+  for (const key of textFields) {
+    const control = narrative.get(key);
+    if (!control) {
+      continue;
+    }
+    const required = enabled && fieldKeys.includes(key);
+    control.setValidators(required ? [narrativeTextValidator()] : []);
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  for (const key of enumFields) {
+    const control = narrative.get(key);
+    if (!control) {
+      continue;
+    }
+    const required = enabled && fieldKeys.includes(key);
+    control.setValidators(required ? [Validators.required] : []);
+    control.updateValueAndValidity({ emitEvent: false });
+  }
 }
 
 function createTimeframeGroup(fb: FormBuilder) {
@@ -124,12 +167,39 @@ function createTimeframeGroup(fb: FormBuilder) {
 function createJournalBlock(fb: FormBuilder) {
   return fb.group({
     notes_content: fb.nonNullable.control<TaggedNotesValue>(EMPTY_TAGGED_NOTES, []),
+    narrative: createHtfNarrativeGroup(fb),
   });
 }
 
-function applyJournalValidators(block: FormGroup, enabled: boolean): void {
+function applyJournalValidators(block: FormGroup, enabled: boolean, tf: AnalyzedTimeframe): void {
   block.get('notes_content')?.setValidators(enabled ? [journalNotesContentValidator()] : []);
   block.get('notes_content')?.updateValueAndValidity({ emitEvent: false });
+
+  const narrative = block.get('narrative') as FormGroup;
+  applyNarrativeFieldValidators(narrative, enabled, narrativeFieldKeysForTimeframe(tf));
+  narrative.updateValueAndValidity({ emitEvent: false });
+}
+
+function resetJournalBlock(block: FormGroup): void {
+  block.patchValue(
+    {
+      notes_content: EMPTY_TAGGED_NOTES,
+      narrative: {
+        value_migration: '',
+        composite_va_position: null,
+        auction_regime: null,
+        prior_week_range_position: null,
+        htf_trade_posture: '',
+        session_read: '',
+      },
+    },
+    { emitEvent: false },
+  );
+
+  const toolsGroup = block.get('narrative.tools_used') as FormGroup;
+  HTF_ANALYSIS_TOOL_OPTIONS.forEach((tool) => {
+    toolsGroup.get(tool.key)?.setValue(false, { emitEvent: false });
+  });
 }
 
 function createTimeframeJournalsGroup(fb: FormBuilder) {
@@ -156,7 +226,6 @@ function createPillarStepBase(fb: FormBuilder) {
 export function createGatekeeperForm(fb: FormBuilder) {
   const form = fb.group({
     context: fb.group({
-      narrative: createHtfNarrativeGroup(fb),
       analyzed_timeframes: createTimeframeGroup(fb),
       trading_timeframe: fb.nonNullable.control<'M15'>('M15'),
       timeframe_journals: createTimeframeJournalsGroup(fb),
@@ -200,14 +269,15 @@ export function createGatekeeperForm(fb: FormBuilder) {
   const journals = context.get('timeframe_journals') as FormGroup;
 
   ANALYZED_TIMEFRAME_KEYS.forEach((tf) => {
-    applyJournalValidators(journals.get(tf) as FormGroup, false);
+    applyJournalValidators(journals.get(tf) as FormGroup, false, tf);
 
     timeframes.get(tf)?.valueChanges.subscribe((enabled) => {
-      applyJournalValidators(journals.get(tf) as FormGroup, enabled === true);
+      const block = journals.get(tf) as FormGroup;
+      applyJournalValidators(block, enabled === true, tf);
       if (!enabled) {
-        journals.get(tf)?.patchValue({ notes_content: EMPTY_TAGGED_NOTES }, { emitEvent: false });
+        resetJournalBlock(block);
       }
-      journals.get(tf)?.updateValueAndValidity({ emitEvent: true });
+      block.updateValueAndValidity({ emitEvent: true });
     });
   });
 
