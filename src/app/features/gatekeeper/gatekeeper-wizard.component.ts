@@ -12,7 +12,6 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
-import { SelectButtonModule } from 'primeng/selectbutton';
 import { TextareaModule } from 'primeng/textarea';
 
 import {
@@ -20,6 +19,7 @@ import {
   CONFIRMATION_TRIGGER_OPTIONS,
   MARKET_BEHAVIOR_OPTIONS,
 } from '../../core/supabase/enum-options';
+import { EnumPillSelectComponent } from '../../shared/components/enum-pill-select/enum-pill-select.component';
 import { createGatekeeperForm } from './gatekeeper-form.factory';
 import type { GatekeeperFormValue, GatekeeperStepKey } from './gatekeeper-form.types';
 import type { PillarStepState } from '../../shared/components/readiness-meter/readiness-meter.types';
@@ -35,7 +35,7 @@ interface WizardStepMeta {
   selector: 'app-gatekeeper-wizard',
   imports: [
     ReactiveFormsModule,
-    SelectButtonModule,
+    EnumPillSelectComponent,
     TextareaModule,
     CheckboxModule,
     InputNumberModule,
