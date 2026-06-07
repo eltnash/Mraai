@@ -32,6 +32,45 @@ export type ConfirmationTrigger =
   | 'VWAP_Reclaim'
   | 'Market_Structure_Break';
 
+/** Timeframes reviewed before dropping to execution TF (15m). */
+export type AnalyzedTimeframe = 'M' | 'W' | 'D' | 'H4' | 'H1';
+
+/** Primary execution timeframe for gatekeeper pillars. */
+export type TradingTimeframe = 'M15';
+
+export type CompositeValuePosition = 'Above_VA' | 'Below_VA' | 'Inside_VA';
+
+export type HtfAuctionRegime =
+  | 'Breaking_Balance'
+  | 'Rotating_Balance'
+  | 'Repairing_Structure';
+
+export type MarketStructureBias =
+  | 'Bullish_HH_HL'
+  | 'Bearish_LH_LL'
+  | 'Balance_Range'
+  | 'Transitional_BOS';
+
+export type HtfAnalysisTool =
+  | 'Composite_VP'
+  | 'Multi_Day_VAH_VAL_POC'
+  | 'Major_HVN_LVN'
+  | 'Multi_Day_TPO'
+  | 'Value_Area_Migration'
+  | 'Day_Type_Series'
+  | 'Unfinished_Business';
+
+export interface HtfContextSnapshot {
+  analyzed_timeframes: AnalyzedTimeframe[];
+  trading_timeframe: TradingTimeframe;
+  composite_value_position: CompositeValuePosition;
+  auction_regime: HtfAuctionRegime;
+  structure_bias: MarketStructureBias;
+  tools_used: HtfAnalysisTool[];
+  htf_thesis: string;
+  session_posture: string;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -76,6 +115,7 @@ export interface ExecutionAudit {
   behavior_thesis: string;
   confirmation_thesis: string;
   invalidation_thesis: string;
+  htf_context: HtfContextSnapshot;
   location_valid_post: boolean | null;
   behavior_matched_post: boolean | null;
   confirmation_legitimate_post: boolean | null;

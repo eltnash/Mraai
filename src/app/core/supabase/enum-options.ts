@@ -1,9 +1,14 @@
 import type {
+  AnalyzedTimeframe,
   AssetSymbol,
   AuctionLocation,
+  CompositeValuePosition,
   ConfirmationTrigger,
   DayType,
+  HtfAnalysisTool,
+  HtfAuctionRegime,
   MarketBehavior,
+  MarketStructureBias,
   TradeDirection,
 } from '../models/database.types';
 
@@ -86,4 +91,87 @@ export const DAY_TYPE_OPTIONS: SelectOption<DayType>[] = [
   { label: 'b-Day (Double distribution)', value: 'b_Day' },
   { label: 'Trend Day', value: 'Trend_Day' },
   { label: 'Double Distribution', value: 'Double_Dist' },
+];
+
+export interface CheckboxOption<T extends string = string> {
+  label: string;
+  key: T;
+  hint?: string;
+}
+
+export const ANALYZED_TIMEFRAME_OPTIONS: CheckboxOption<AnalyzedTimeframe>[] = [
+  { key: 'M', label: 'Monthly', hint: 'Macro value migration & major balance' },
+  { key: 'W', label: 'Weekly', hint: 'Weekly composite profile & VWAP' },
+  { key: 'D', label: 'Daily', hint: 'Developing day type & session value' },
+  { key: 'H4', label: '4 Hour', hint: 'Intermediate structure & rotations' },
+  { key: 'H1', label: '1 Hour', hint: 'Intraday structure into 15m execution' },
+];
+
+export const COMPOSITE_VALUE_POSITION_OPTIONS: SelectOption<CompositeValuePosition>[] = [
+  {
+    label: 'Above composite VA',
+    value: 'Above_VA',
+    hint: 'Price accepted above multi-day value — look for continuation or repair back to value',
+  },
+  {
+    label: 'Below composite VA',
+    value: 'Below_VA',
+    hint: 'Price accepted below multi-day value — sellers or responsive buyers in control',
+  },
+  {
+    label: 'Inside composite VA',
+    value: 'Inside_VA',
+    hint: 'Rotational balance — extremes may be faded until migration',
+  },
+];
+
+export const HTF_AUCTION_REGIME_OPTIONS: SelectOption<HtfAuctionRegime>[] = [
+  {
+    label: 'Breaking balance',
+    value: 'Breaking_Balance',
+    hint: 'Auction leaving a multi-day balance — initiative moves toward new value',
+  },
+  {
+    label: 'Rotating in balance',
+    value: 'Rotating_Balance',
+    hint: 'Two-sided trade inside a larger value area — fade extremes, wait for migration',
+  },
+  {
+    label: 'Repairing structure',
+    value: 'Repairing_Structure',
+    hint: 'Poor highs/lows, single prints, LVNs — market attempting to finish unfinished business',
+  },
+];
+
+export const MARKET_STRUCTURE_BIAS_OPTIONS: SelectOption<MarketStructureBias>[] = [
+  {
+    label: 'Bullish (HH / HL)',
+    value: 'Bullish_HH_HL',
+    hint: 'Buyers in control — higher highs and higher lows on reviewed timeframes',
+  },
+  {
+    label: 'Bearish (LH / LL)',
+    value: 'Bearish_LH_LL',
+    hint: 'Sellers in control — lower highs and lower lows on reviewed timeframes',
+  },
+  {
+    label: 'Balance / range',
+    value: 'Balance_Range',
+    hint: 'Overlapping value — no clear directional control, responsive trade environment',
+  },
+  {
+    label: 'Transitional (BOS)',
+    value: 'Transitional_BOS',
+    hint: 'Break of structure — control shifting; watch for acceptance at new levels',
+  },
+];
+
+export const HTF_ANALYSIS_TOOL_OPTIONS: CheckboxOption<HtfAnalysisTool>[] = [
+  { key: 'Composite_VP', label: 'Composite volume profile' },
+  { key: 'Multi_Day_VAH_VAL_POC', label: 'Multi-day VAH / VAL / POC' },
+  { key: 'Major_HVN_LVN', label: 'Major HVNs & LVNs' },
+  { key: 'Multi_Day_TPO', label: 'Multi-day TPO' },
+  { key: 'Value_Area_Migration', label: 'Value area migration' },
+  { key: 'Day_Type_Series', label: 'Day type series (trend vs balance)' },
+  { key: 'Unfinished_Business', label: 'Unfinished business (poor highs/lows, single prints)' },
 ];

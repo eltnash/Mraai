@@ -3,7 +3,10 @@ import { MessageModule } from 'primeng/message';
 import { ToastModule } from 'primeng/toast';
 
 import { ReadinessMeterComponent } from '../../shared/components/readiness-meter/readiness-meter.component';
-import type { PillarStepState } from '../../shared/components/readiness-meter/readiness-meter.types';
+import {
+  READINESS_WEIGHT_PER_STEP,
+  type PillarStepState,
+} from '../../shared/components/readiness-meter/readiness-meter.types';
 import { ExecutionBlockComponent } from './execution-block.component';
 import { GatekeeperWizardComponent } from './gatekeeper-wizard.component';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
@@ -40,7 +43,9 @@ export class GatekeeperPageComponent {
   }): void {
     this.pillarSteps.set(event.pillarSteps);
     this.pillarsQualified.set(event.pillarsQualified);
-    this.readinessPct.set(event.pillarSteps.filter((step) => step.valid).length * 25);
+    this.readinessPct.set(
+      event.pillarSteps.filter((step) => step.valid).length * READINESS_WEIGHT_PER_STEP,
+    );
     this.qualifiedFormValue.set(event.formValue);
     this.isRetest.set(event.isRetest);
   }

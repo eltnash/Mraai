@@ -1,5 +1,5 @@
 <form class="gatekeeper-form" [formGroup]="form">
-  <nav class="gatekeeper-form__steps" aria-label="Pillar steps">
+  <nav class="gatekeeper-form__steps" aria-label="Qualification steps">
     @for (step of steps; track step.key) {
       <button
         type="button"
@@ -17,10 +17,132 @@
   <p class="gatekeeper-form__methodology">{{ currentStep().methodology }}</p>
 
   @if (activeStep() === 1) {
+    <section class="gatekeeper-form__panel" formGroupName="context">
+      <p-message
+        severity="info"
+        text="Higher timeframe auction — no trade decision here. Establish macro backdrop (composite value, TPO, structure). Then drop to 15m for execution pillars."
+        styleClass="gatekeeper-form__oath"
+      />
+
+      <div class="gatekeeper-form__exec-badge">
+        <span class="gatekeeper-form__label">Execution timeframe</span>
+        <p-tag severity="success" [value]="executionTimeframe + ' chart'" />
+      </div>
+
+      <div class="gatekeeper-form__section">
+        <label class="gatekeeper-form__label">Timeframes analyzed (select all that apply)</label>
+        <div formGroupName="analyzed_timeframes" class="gatekeeper-form__checkbox-grid">
+          @for (tf of timeframeOptions; track tf.key) {
+            <label class="gatekeeper-form__checkbox-card">
+              <p-checkbox [formControlName]="tf.key" [binary]="true" [inputId]="'tf-' + tf.key" />
+              <span class="gatekeeper-form__checkbox-text">
+                <strong>{{ tf.label }}</strong>
+                @if (tf.hint) {
+                  <small>{{ tf.hint }}</small>
+                }
+              </span>
+            </label>
+          }
+        </div>
+      </div>
+
+      <p-divider />
+
+      <div class="gatekeeper-form__section">
+        <label class="gatekeeper-form__label">Price vs composite value area</label>
+        <app-enum-pill-select
+          formControlName="composite_value_position"
+          ariaLabel="Composite value position"
+          [options]="compositePositionOptions"
+        />
+        @if (
+          selectedHint(
+            compositePositionOptions,
+            contextGroup().get('composite_value_position')?.value
+          );
+          as hint
+        ) {
+          <p class="gatekeeper-form__hint">{{ hint }}</p>
+        }
+      </div>
+
+      <div class="gatekeeper-form__section">
+        <label class="gatekeeper-form__label">Higher timeframe auction regime</label>
+        <app-enum-pill-select
+          formControlName="auction_regime"
+          ariaLabel="Auction regime"
+          [options]="auctionRegimeOptions"
+        />
+        @if (
+          selectedHint(auctionRegimeOptions, contextGroup().get('auction_regime')?.value);
+          as hint
+        ) {
+          <p class="gatekeeper-form__hint">{{ hint }}</p>
+        }
+      </div>
+
+      <div class="gatekeeper-form__section">
+        <label class="gatekeeper-form__label">Market structure (who is in control?)</label>
+        <app-enum-pill-select
+          formControlName="structure_bias"
+          ariaLabel="Market structure bias"
+          [options]="structureBiasOptions"
+        />
+        @if (
+          selectedHint(structureBiasOptions, contextGroup().get('structure_bias')?.value);
+          as hint
+        ) {
+          <p class="gatekeeper-form__hint">{{ hint }}</p>
+        }
+      </div>
+
+      <div class="gatekeeper-form__section">
+        <label class="gatekeeper-form__label">Tools used in analysis</label>
+        <div formGroupName="tools_used" class="gatekeeper-form__checkbox-grid">
+          @for (tool of toolOptions; track tool.key) {
+            <label class="gatekeeper-form__checkbox-card">
+              <p-checkbox [formControlName]="tool.key" [binary]="true" [inputId]="'tool-' + tool.key" />
+              <span class="gatekeeper-form__checkbox-text">
+                <strong>{{ tool.label }}</strong>
+              </span>
+            </label>
+          }
+        </div>
+      </div>
+
+      <label class="gatekeeper-form__label" for="htf-thesis">HTF auction narrative</label>
+      <textarea
+        pTextarea
+        id="htf-thesis"
+        formControlName="htf_thesis"
+        rows="4"
+        placeholder="Where has value been? Are HTF players pushing toward new value, or are we in balance where extremes fade? Reference composite profile, TPO migration, day types, unfinished business..."
+        class="gatekeeper-form__textarea"
+      ></textarea>
+
+      <label class="gatekeeper-form__label" for="session-posture">Today's trading posture</label>
+      <textarea
+        pTextarea
+        id="session-posture"
+        formControlName="session_posture"
+        rows="3"
+        placeholder="How does today's developing session translate HTF context into a practical posture on 15m? Initiative vs responsive? Which direction aligns with structure?"
+        class="gatekeeper-form__textarea"
+      ></textarea>
+    </section>
+  }
+
+  @if (activeStep() === 2) {
     <section class="gatekeeper-form__panel form-step--active">
       <p-message
         severity="info"
         text="Daily oath: I will not trade because price touched a level. The first test provides information. The retest provides opportunity."
+        styleClass="gatekeeper-form__oath"
+      />
+
+      <p-message
+        severity="warn"
+        [text]="'Execution timeframe: ' + executionTimeframe + ' — complete HTF context before qualifying this trade.'"
         styleClass="gatekeeper-form__oath"
       />
 
@@ -32,7 +154,7 @@
       </div>
 
       <div formGroupName="location" class="gatekeeper-form__fields">
-        <label class="gatekeeper-form__label">Auction location</label>
+        <label class="gatekeeper-form__label">Auction location (15m)</label>
         <app-enum-pill-select
           formControlName="location"
           ariaLabel="Auction location"
@@ -48,16 +170,16 @@
           id="location-thesis"
           formControlName="location_thesis"
           rows="4"
-          placeholder="Where is price relative to value? Why is this an auction boundary, not middle of value?"
+          placeholder="Where is price relative to value on 15m? Why is this an auction boundary aligned with your HTF posture, not middle of value?"
           class="gatekeeper-form__textarea"
         ></textarea>
       </div>
     </section>
   }
 
-  @if (activeStep() === 2) {
+  @if (activeStep() === 3) {
     <section class="gatekeeper-form__panel form-step--active" formGroupName="behavior">
-      <label class="gatekeeper-form__label">Market behavior</label>
+      <label class="gatekeeper-form__label">Market behavior (15m)</label>
       <app-enum-pill-select
         formControlName="behavior"
         ariaLabel="Market behavior"
@@ -73,15 +195,15 @@
         id="behavior-thesis"
         formControlName="behavior_thesis"
         rows="4"
-        placeholder="Acceptance, rejection, or migration? What did the initial test reveal, and what does the retest prove?"
+        placeholder="Acceptance, rejection, or migration? What did the initial test reveal, and what does the retest prove relative to HTF context?"
         class="gatekeeper-form__textarea"
       ></textarea>
     </section>
   }
 
-  @if (activeStep() === 3) {
+  @if (activeStep() === 4) {
     <section class="gatekeeper-form__panel form-step--active" formGroupName="confirmation">
-      <label class="gatekeeper-form__label">Confirmation trigger</label>
+      <label class="gatekeeper-form__label">Confirmation trigger (15m)</label>
       <app-enum-pill-select
         formControlName="confirmation"
         ariaLabel="Confirmation trigger"
@@ -106,7 +228,7 @@
     </section>
   }
 
-  @if (activeStep() === 4) {
+  @if (activeStep() === 5) {
     <section class="gatekeeper-form__panel form-step--active" formGroupName="invalidation">
       <label class="gatekeeper-form__label" for="invalidation-level">Invalidation level</label>
       <input
@@ -149,8 +271,8 @@
       [disabled]="activeStep() === 1"
       (onClick)="goBack()"
     />
-    @if (activeStep() < 4) {
-      <p-button type="button" label="Next pillar" icon="pi pi-arrow-right" (onClick)="goNext()" />
+    @if (activeStep() < stepCount) {
+      <p-button type="button" label="Next step" icon="pi pi-arrow-right" (onClick)="goNext()" />
     }
   </div>
 </form>

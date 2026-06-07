@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../core/supabase/supabase.service';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 import type { GatekeeperSubmitPayload, GatekeeperSubmitResult } from './execution-block.types';
+import { mapFormToHtfContext } from './htf-context.utils';
 
 @Injectable({ providedIn: 'root' })
 export class GatekeeperSubmitService {
@@ -29,6 +30,7 @@ export class GatekeeperSubmitService {
       behavior_thesis: form.behavior.behavior_thesis.trim(),
       confirmation_thesis: form.confirmation.confirmation_thesis.trim(),
       invalidation_thesis: form.invalidation.invalidation_thesis.trim(),
+      htf_context: mapFormToHtfContext(form),
     };
   }
 

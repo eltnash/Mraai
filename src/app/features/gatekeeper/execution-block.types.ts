@@ -1,4 +1,4 @@
-import type { AssetSymbol, DayType, TradeDirection } from '../../core/models/database.types';
+import type { AssetSymbol, DayType, HtfContextSnapshot, TradeDirection } from '../../core/models/database.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 
 export interface ExecutionFormValue {
@@ -42,6 +42,7 @@ export interface GatekeeperSubmitPayload {
     behavior_thesis: string;
     confirmation_thesis: string;
     invalidation_thesis: string;
+    htf_context: HtfContextSnapshot;
   };
 }
 

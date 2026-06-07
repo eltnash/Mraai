@@ -1,19 +1,27 @@
 import {
   AbstractControl,
   FormBuilder,
+  FormGroup,
   ValidationErrors,
   ValidatorFn,
   Validators,
 } from '@angular/forms';
 
 import type {
+  AnalyzedTimeframe,
   AuctionLocation,
+  CompositeValuePosition,
   ConfirmationTrigger,
+  HtfAnalysisTool,
+  HtfAuctionRegime,
   MarketBehavior,
+  MarketStructureBias,
 } from '../../core/models/database.types';
 
 const THESIS_MIN_LENGTH = 20;
 const THESIS_MAX_LENGTH = 2000;
+const POSTURE_MIN_LENGTH = 15;
+const POSTURE_MAX_LENGTH = 1200;
 
 export function thesisValidators(): ValidatorFn[] {
   return [
@@ -22,6 +30,14 @@ export function thesisValidators(): ValidatorFn[] {
     Validators.maxLength(THESIS_MAX_LENGTH),
     Validators.pattern(/\S/),
   ];
+}
+
+export function atLeastOneCheckedValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const group = control as FormGroup;
+    const checked = Object.values(group.controls).some((field) => field.value === true);
+    return checked ? null : { atLeastOneChecked: true };
+  };
 }
 
 export function retestGateValidator(): ValidatorFn {
@@ -37,8 +53,51 @@ export function retestGateValidator(): ValidatorFn {
   };
 }
 
+function createTimeframeGroup(fb: FormBuilder) {
+  return fb.group(
+    {
+      M: fb.nonNullable.control(false),
+      W: fb.nonNullable.control(false),
+      D: fb.nonNullable.control(false),
+      H4: fb.nonNullable.control(false),
+      H1: fb.nonNullable.control(false),
+    },
+    { validators: [atLeastOneCheckedValidator()] },
+  );
+}
+
+function createToolsGroup(fb: FormBuilder) {
+  return fb.group(
+    {
+      Composite_VP: fb.nonNullable.control(false),
+      Multi_Day_VAH_VAL_POC: fb.nonNullable.control(false),
+      Major_HVN_LVN: fb.nonNullable.control(false),
+      Multi_Day_TPO: fb.nonNullable.control(false),
+      Value_Area_Migration: fb.nonNullable.control(false),
+      Day_Type_Series: fb.nonNullable.control(false),
+      Unfinished_Business: fb.nonNullable.control(false),
+    },
+    { validators: [atLeastOneCheckedValidator()] },
+  );
+}
+
 export function createGatekeeperForm(fb: FormBuilder) {
   return fb.group({
+    context: fb.group({
+      analyzed_timeframes: createTimeframeGroup(fb),
+      trading_timeframe: fb.nonNullable.control<'M15'>('M15'),
+      composite_value_position: fb.control<CompositeValuePosition | null>(null, Validators.required),
+      auction_regime: fb.control<HtfAuctionRegime | null>(null, Validators.required),
+      structure_bias: fb.control<MarketStructureBias | null>(null, Validators.required),
+      tools_used: createToolsGroup(fb),
+      htf_thesis: fb.nonNullable.control('', thesisValidators()),
+      session_posture: fb.nonNullable.control('', [
+        Validators.required,
+        Validators.minLength(POSTURE_MIN_LENGTH),
+        Validators.maxLength(POSTURE_MAX_LENGTH),
+        Validators.pattern(/\S/),
+      ]),
+    }),
     is_retest: fb.nonNullable.control(false, { validators: [Validators.requiredTrue] }),
     location: fb.group({
       location: fb.control<AuctionLocation | null>(null, [
@@ -70,3 +129,11 @@ export function createGatekeeperForm(fb: FormBuilder) {
     }),
   });
 }
+
+export type TimeframeFormGroup = FormGroup<{
+  [K in AnalyzedTimeframe]: ReturnType<FormBuilder['control']>;
+}>;
+
+export type ToolsFormGroup = FormGroup<{
+  [K in HtfAnalysisTool]: ReturnType<FormBuilder['control']>;
+}>;

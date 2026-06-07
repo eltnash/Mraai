@@ -1,8 +1,25 @@
 import type {
+  AnalyzedTimeframe,
   AuctionLocation,
+  CompositeValuePosition,
   ConfirmationTrigger,
+  HtfAnalysisTool,
+  HtfAuctionRegime,
   MarketBehavior,
+  MarketStructureBias,
+  TradingTimeframe,
 } from '../../core/models/database.types';
+
+export interface ContextStepValue {
+  analyzed_timeframes: Record<AnalyzedTimeframe, boolean>;
+  trading_timeframe: TradingTimeframe;
+  composite_value_position: CompositeValuePosition | null;
+  auction_regime: HtfAuctionRegime | null;
+  structure_bias: MarketStructureBias | null;
+  tools_used: Record<HtfAnalysisTool, boolean>;
+  htf_thesis: string;
+  session_posture: string;
+}
 
 export interface LocationStepValue {
   location: AuctionLocation | null;
@@ -26,6 +43,7 @@ export interface InvalidationStepValue {
 }
 
 export interface GatekeeperFormValue {
+  context: ContextStepValue;
   is_retest: boolean;
   location: LocationStepValue;
   behavior: BehaviorStepValue;
@@ -33,4 +51,9 @@ export interface GatekeeperFormValue {
   invalidation: InvalidationStepValue;
 }
 
-export type GatekeeperStepKey = 'location' | 'behavior' | 'confirmation' | 'invalidation';
+export type GatekeeperStepKey =
+  | 'context'
+  | 'location'
+  | 'behavior'
+  | 'confirmation'
+  | 'invalidation';

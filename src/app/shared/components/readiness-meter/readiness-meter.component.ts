@@ -4,7 +4,7 @@ import { KnobModule } from 'primeng/knob';
 import { MessageModule } from 'primeng/message';
 import { ProgressBarModule } from 'primeng/progressbar';
 
-import type { PillarStepState } from './readiness-meter.types';
+import { READINESS_WEIGHT_PER_STEP, type PillarStepState } from './readiness-meter.types';
 
 @Component({
   selector: 'app-readiness-meter',
@@ -22,7 +22,7 @@ export class ReadinessMeterComponent {
     () => this.pillarSteps().filter((step) => step.valid).length,
   );
 
-  protected readonly readinessPct = computed(() => this.completedSteps() * 25);
+  protected readonly readinessPct = computed(() => this.completedSteps() * READINESS_WEIGHT_PER_STEP);
 
   protected readonly pillarsQualified = computed(() => this.readinessPct() === 100);
 

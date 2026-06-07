@@ -9,19 +9,28 @@ import {
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
+import { DividerModule } from 'primeng/divider';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
 import {
+  ANALYZED_TIMEFRAME_OPTIONS,
   AUCTION_LOCATION_OPTIONS,
+  COMPOSITE_VALUE_POSITION_OPTIONS,
   CONFIRMATION_TRIGGER_OPTIONS,
+  HTF_ANALYSIS_TOOL_OPTIONS,
+  HTF_AUCTION_REGIME_OPTIONS,
   MARKET_BEHAVIOR_OPTIONS,
+  MARKET_STRUCTURE_BIAS_OPTIONS,
 } from '../../core/supabase/enum-options';
 import { EnumPillSelectComponent } from '../../shared/components/enum-pill-select/enum-pill-select.component';
+import { READINESS_WEIGHT_PER_STEP } from '../../shared/components/readiness-meter/readiness-meter.types';
 import { createGatekeeperForm } from './gatekeeper-form.factory';
 import type { GatekeeperFormValue, GatekeeperStepKey } from './gatekeeper-form.types';
+import { EXECUTION_TIMEFRAME, formatHtfContextSummary, mapFormToHtfContext } from './htf-context.utils';
 import type { PillarStepState } from '../../shared/components/readiness-meter/readiness-meter.types';
 
 interface WizardStepMeta {
@@ -42,6 +51,8 @@ interface WizardStepMeta {
     InputTextModule,
     ButtonModule,
     MessageModule,
+    DividerModule,
+    TagModule,
   ],
   templateUrl: './gatekeeper-wizard.component.html',
   styleUrl: './gatekeeper-wizard.component.scss',
@@ -59,51 +70,80 @@ export class GatekeeperWizardComponent {
 
   protected readonly form = createGatekeeperForm(this.fb);
   protected readonly activeStep = signal(1);
+  protected readonly executionTimeframe = EXECUTION_TIMEFRAME;
 
+  protected readonly timeframeOptions = ANALYZED_TIMEFRAME_OPTIONS;
+  protected readonly toolOptions = HTF_ANALYSIS_TOOL_OPTIONS;
+  protected readonly compositePositionOptions = COMPOSITE_VALUE_POSITION_OPTIONS;
+  protected readonly auctionRegimeOptions = HTF_AUCTION_REGIME_OPTIONS;
+  protected readonly structureBiasOptions = MARKET_STRUCTURE_BIAS_OPTIONS;
   protected readonly locationOptions = AUCTION_LOCATION_OPTIONS;
   protected readonly behaviorOptions = MARKET_BEHAVIOR_OPTIONS;
   protected readonly confirmationOptions = CONFIRMATION_TRIGGER_OPTIONS;
 
   protected readonly steps: WizardStepMeta[] = [
     {
-      key: 'location',
+      key: 'context',
       number: 1,
+      title: 'HTF Context',
+      methodology:
+        'Where has value been over days/weeks? You do not decide trades here — you decide what kind of trades might make sense later. Map composite profile, TPO migration, unfinished business, and market structure (HH/HL vs LH/LL vs balance) before dropping to 15m execution.',
+    },
+    {
+      key: 'location',
+      number: 2,
       title: 'Location',
       methodology:
-        'The level is not the trade. Identify where the auction must decide — VAH, VAL, POC, VWAP, overnight extremes, or single prints. Price in the middle of value = no trade.',
+        'On your 15m execution timeframe: the level is not the trade. Identify where today\'s auction must decide — VAH, VAL, POC, VWAP, overnight extremes, or single prints. Price in the middle of value = no trade.',
     },
     {
       key: 'behavior',
-      number: 2,
+      number: 3,
       title: 'Behavior',
       methodology:
-        'Do not ask if price touched a level. Ask: acceptance, rejection, or migration? The first test builds narrative — observe how the market responds.',
+        'How is today\'s session translating HTF narrative? Acceptance, rejection, or migration at the edge? The first test builds context — the retest is where opportunity lives.',
     },
     {
       key: 'confirmation',
-      number: 3,
+      number: 4,
       title: 'Confirmation',
       methodology:
-        'Location + behavior build context. Confirmation validates participation — CVD divergence, absorption, VWAP reclaim, or structure break at the retest.',
+        'Location + behavior build context. Confirmation validates participation at the retest — CVD divergence, absorption, VWAP reclaim, or structure break.',
     },
     {
       key: 'invalidation',
-      number: 4,
+      number: 5,
       title: 'Invalidation',
       methodology:
-        'Where is the thesis objectively dead? Without structural invalidation, risk cannot be defined. Hitting invalidation means the auction narrative has failed.',
+        'Where is the thesis objectively dead on your execution timeframe? Without structural invalidation, risk cannot be defined.',
     },
   ];
 
+  protected readonly stepCount = this.steps.length;
   protected readonly currentStep = computed(() => this.steps[this.activeStep() - 1]);
 
   protected readonly pillarSteps = computed((): PillarStepState[] => {
     this.formTick();
     const value = this.form.getRawValue() as GatekeeperFormValue;
+    let contextSummary: string | null = null;
+    if (this.isStepValid('context')) {
+      try {
+        contextSummary = formatHtfContextSummary(mapFormToHtfContext(value));
+      } catch {
+        contextSummary = null;
+      }
+    }
+
     return [
       {
+        key: 'context',
+        label: 'HTF Context',
+        valid: this.isStepValid('context'),
+        value: contextSummary,
+      },
+      {
         key: 'location',
-        label: 'Location',
+        label: 'Location (15m)',
         valid: this.isStepValid('location'),
         value: value.location.location,
       },
@@ -132,6 +172,10 @@ export class GatekeeperWizardComponent {
     () => this.pillarSteps().every((step) => step.valid) && this.form.controls.is_retest.value,
   );
 
+  protected readonly readinessPct = computed(
+    () => this.pillarSteps().filter((step) => step.valid).length * READINESS_WEIGHT_PER_STEP,
+  );
+
   private readonly formTick = signal(0);
 
   constructor() {
@@ -145,6 +189,10 @@ export class GatekeeperWizardComponent {
     });
 
     this.emitState();
+  }
+
+  protected contextGroup(): FormGroup {
+    return this.stepGroup('context');
   }
 
   protected stepGroup(key: GatekeeperStepKey): FormGroup {
@@ -168,7 +216,7 @@ export class GatekeeperWizardComponent {
     if (!this.isStepValid(key)) {
       return;
     }
-    if (this.activeStep() < 4) {
+    if (this.activeStep() < this.stepCount) {
       this.activeStep.update((n) => n + 1);
     }
   }
