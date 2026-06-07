@@ -16,7 +16,7 @@ export function mapContextStepToSnapshot(context: ContextStepValue): HtfContextS
   ).map((tf) => ({
     timeframe: tf,
     notes: context.timeframe_journals[tf].notes.trim(),
-    screenshot: null,
+    screenshots: [],
   }));
 
   if (timeframe_entries.length === 0) {

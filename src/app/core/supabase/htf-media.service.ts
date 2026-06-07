@@ -7,6 +7,13 @@ const BUCKET = 'trade-screenshots';
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
+export interface HtfScreenshotUploadDraft {
+  file: File;
+  fileName: string;
+  mimeType: string;
+  isAnnotated: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class HtfMediaService {
   private readonly supabase = inject(SupabaseService);
@@ -34,12 +41,7 @@ export class HtfMediaService {
   async attachScreenshotsToContext(
     tradeId: string,
     context: HtfContextSnapshot,
-    drafts: Partial<
-      Record<
-        AnalyzedTimeframe,
-        { file: File; fileName: string; mimeType: string; isAnnotated: boolean }
-      >
-    >,
+    drafts: Partial<Record<AnalyzedTimeframe, HtfScreenshotUploadDraft[]>>,
   ): Promise<HtfContextSnapshot> {
     const {
       data: { user },
@@ -51,38 +53,49 @@ export class HtfMediaService {
     const uploadedPaths: string[] = [];
     const entries = await Promise.all(
       context.timeframe_entries.map(async (entry) => {
-        const draft = drafts[entry.timeframe];
-        if (!draft) {
+        const draftItems = drafts[entry.timeframe];
+        if (!draftItems?.length) {
           throw new Error(`Missing screenshot for ${entry.timeframe}`);
         }
 
-        const validationError = this.validateFile(draft.file);
-        if (validationError) {
-          throw new Error(`${entry.timeframe}: ${validationError}`);
-        }
+        const screenshots = await Promise.all(
+          draftItems.map(async (draft) => {
+            const validationError = this.validateFile(draft.file);
+            if (validationError) {
+              throw new Error(`${entry.timeframe}: ${validationError}`);
+            }
 
-        const storagePath = this.buildStoragePath(user.id, tradeId, entry.timeframe, draft.fileName);
-        const { error } = await this.supabase.client.storage
-          .from(BUCKET)
-          .upload(storagePath, draft.file, {
-            contentType: draft.mimeType || 'image/png',
-            upsert: false,
-          });
+            const storagePath = this.buildStoragePath(
+              user.id,
+              tradeId,
+              entry.timeframe,
+              draft.fileName,
+            );
+            const { error } = await this.supabase.client.storage
+              .from(BUCKET)
+              .upload(storagePath, draft.file, {
+                contentType: draft.mimeType || 'image/png',
+                upsert: false,
+              });
 
-        if (error) {
-          throw new Error(error.message);
-        }
+            if (error) {
+              throw new Error(error.message);
+            }
 
-        uploadedPaths.push(storagePath);
+            uploadedPaths.push(storagePath);
+
+            return {
+              storage_path: storagePath,
+              file_name: draft.fileName,
+              mime_type: draft.mimeType || 'image/png',
+              is_annotated: draft.isAnnotated,
+            };
+          }),
+        );
 
         return {
           ...entry,
-          screenshot: {
-            storage_path: storagePath,
-            file_name: draft.fileName,
-            mime_type: draft.mimeType || 'image/png',
-            is_annotated: draft.isAnnotated,
-          },
+          screenshots,
         };
       }),
     );

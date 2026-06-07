@@ -97,19 +97,19 @@ export class GatekeeperSubmitService {
     const uploadDrafts: Partial<
       Record<
         AnalyzedTimeframe,
-        { file: File; fileName: string; mimeType: string; isAnnotated: boolean }
+        { file: File; fileName: string; mimeType: string; isAnnotated: boolean }[]
       >
     > = {};
 
     for (const tf of Object.keys(drafts) as AnalyzedTimeframe[]) {
-      const draft = drafts[tf];
-      if (draft) {
-        uploadDrafts[tf] = {
-          file: draft.file,
-          fileName: draft.fileName,
-          mimeType: draft.mimeType,
-          isAnnotated: draft.isAnnotated,
-        };
+      const items = drafts[tf];
+      if (items?.length) {
+        uploadDrafts[tf] = items.map((item) => ({
+          file: item.file,
+          fileName: item.fileName,
+          mimeType: item.mimeType,
+          isAnnotated: item.isAnnotated,
+        }));
       }
     }
 

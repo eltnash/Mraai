@@ -101,7 +101,7 @@ export interface TimeframeScreenshotRef {
 export interface TimeframeJournalEntry {
   timeframe: AnalyzedTimeframe;
   notes: string;
-  screenshot: TimeframeScreenshotRef | null;
+  screenshots: TimeframeScreenshotRef[];
 }
 
 export interface HtfContextSnapshot {

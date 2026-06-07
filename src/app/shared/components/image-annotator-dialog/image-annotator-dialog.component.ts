@@ -3,27 +3,37 @@ import {
   Component,
   ElementRef,
   HostListener,
-  inject,
   input,
   output,
   signal,
   viewChild,
+  viewChildren,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
 
 type AnnotatorTool = 'pan' | 'draw' | 'text';
 
 interface TextStamp {
+  id: string;
   x: number;
   y: number;
   text: string;
+  color: string;
+}
+
+interface TextDragState {
+  id: string;
+  pointerId: number;
+  startClientX: number;
+  startClientY: number;
+  originX: number;
+  originY: number;
+  moved: boolean;
 }
 
 @Component({
   selector: 'app-image-annotator-dialog',
-  imports: [FormsModule, ButtonModule, InputTextModule],
+  imports: [ButtonModule],
   templateUrl: './image-annotator-dialog.component.html',
   styleUrl: './image-annotator-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,8 +49,8 @@ export class ImageAnnotatorDialogComponent {
   protected readonly scale = signal(1);
   protected readonly translateX = signal(0);
   protected readonly translateY = signal(0);
-  protected readonly textInput = signal('');
-  protected readonly pendingTextPoint = signal<{ x: number; y: number } | null>(null);
+  protected readonly textStamps = signal<TextStamp[]>([]);
+  protected readonly selectedTextId = signal<string | null>(null);
 
   protected readonly toolOptions = [
     { label: 'Pan', value: 'pan' as const, icon: 'pi pi-arrows-alt' },
@@ -53,12 +63,13 @@ export class ImageAnnotatorDialogComponent {
   private readonly viewportRef = viewChild<ElementRef<HTMLElement>>('viewport');
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly imageRef = viewChild<ElementRef<HTMLImageElement>>('image');
+  private readonly textStampRefs = viewChildren<ElementRef<HTMLElement>>('textStamp');
 
   private drawing = false;
   private panning = false;
   private lastX = 0;
   private lastY = 0;
-  private textStamps: TextStamp[] = [];
+  private textDrag: TextDragState | null = null;
   private naturalWidth = 0;
   private naturalHeight = 0;
 
@@ -82,11 +93,19 @@ export class ImageAnnotatorDialogComponent {
 
   protected setTool(tool: AnnotatorTool): void {
     this.tool.set(tool);
-    this.pendingTextPoint.set(null);
+    if (tool !== 'text') {
+      this.selectedTextId.set(null);
+    }
   }
 
   protected setColor(color: string): void {
     this.strokeColor.set(color);
+    const selectedId = this.selectedTextId();
+    if (selectedId) {
+      this.textStamps.update((stamps) =>
+        stamps.map((stamp) => (stamp.id === selectedId ? { ...stamp, color } : stamp)),
+      );
+    }
   }
 
   protected zoomIn(): void {
@@ -104,17 +123,28 @@ export class ImageAnnotatorDialogComponent {
   }
 
   protected undo(): void {
-    if (this.textStamps.length === 0) {
-      this.clearCanvas();
+    const stamps = this.textStamps();
+    if (stamps.length > 0) {
+      this.textStamps.set(stamps.slice(0, -1));
+      this.selectedTextId.set(null);
       return;
     }
-    this.textStamps.pop();
     this.clearCanvas();
   }
 
   protected clearAll(): void {
-    this.textStamps = [];
+    this.textStamps.set([]);
+    this.selectedTextId.set(null);
     this.clearCanvas();
+  }
+
+  protected deleteSelectedText(): void {
+    const selectedId = this.selectedTextId();
+    if (!selectedId) {
+      return;
+    }
+    this.textStamps.update((stamps) => stamps.filter((stamp) => stamp.id !== selectedId));
+    this.selectedTextId.set(null);
   }
 
   protected close(): void {
@@ -138,6 +168,21 @@ export class ImageAnnotatorDialogComponent {
 
     ctx.drawImage(img, 0, 0, this.naturalWidth, this.naturalHeight);
     ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, this.naturalWidth, this.naturalHeight);
+
+    const scaleX = this.naturalWidth / canvas.width;
+    const scaleY = this.naturalHeight / canvas.height;
+    const fontSize = Math.max(12, Math.round(16 * scaleY));
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textBaseline = 'top';
+
+    for (const stamp of this.textStamps()) {
+      const text = stamp.text.trim();
+      if (!text) {
+        continue;
+      }
+      ctx.fillStyle = stamp.color;
+      ctx.fillText(text, stamp.x * scaleX, stamp.y * scaleY);
+    }
 
     exportCanvas.toBlob((blob) => {
       if (!blob) {
@@ -164,6 +209,7 @@ export class ImageAnnotatorDialogComponent {
     }
 
     const point = this.canvasPoint(event, canvas);
+
     if (this.tool() === 'draw') {
       this.drawing = true;
       const ctx = canvas.getContext('2d');
@@ -181,11 +227,71 @@ export class ImageAnnotatorDialogComponent {
     }
 
     if (this.tool() === 'text') {
-      this.pendingTextPoint.set(point);
+      this.addTextStamp(point.x, point.y);
     }
   }
 
+  protected onTextStampPointerDown(event: PointerEvent, stampId: string): void {
+    if (this.tool() !== 'text') {
+      return;
+    }
+
+    event.stopPropagation();
+    const stamp = this.textStamps().find((item) => item.id === stampId);
+    const viewport = this.viewportRef()?.nativeElement;
+    if (!stamp || !viewport) {
+      return;
+    }
+
+    this.selectedTextId.set(stampId);
+    this.textDrag = {
+      id: stampId,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      originX: stamp.x,
+      originY: stamp.y,
+      moved: false,
+    };
+    viewport.setPointerCapture(event.pointerId);
+  }
+
+  protected onTextInput(stampId: string, event: Event): void {
+    const target = event.target as HTMLElement;
+    this.textStamps.update((stamps) =>
+      stamps.map((stamp) =>
+        stamp.id === stampId ? { ...stamp, text: target.innerText ?? '' } : stamp,
+      ),
+    );
+  }
+
   protected onPointerMove(event: PointerEvent): void {
+    if (this.textDrag) {
+      const canvas = this.canvasRef()?.nativeElement;
+      if (!canvas) {
+        return;
+      }
+
+      const dx = event.clientX - this.textDrag.startClientX;
+      const dy = event.clientY - this.textDrag.startClientY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        this.textDrag.moved = true;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const nextX = this.textDrag.originX + dx * scaleX;
+      const nextY = this.textDrag.originY + dy * scaleY;
+
+      this.textStamps.update((stamps) =>
+        stamps.map((stamp) =>
+          stamp.id === this.textDrag?.id ? { ...stamp, x: nextX, y: nextY } : stamp,
+        ),
+      );
+      return;
+    }
+
     if (this.panning) {
       const dx = event.clientX - this.lastX;
       const dy = event.clientY - this.lastY;
@@ -215,6 +321,17 @@ export class ImageAnnotatorDialogComponent {
   }
 
   protected onPointerUp(event: PointerEvent): void {
+    if (this.textDrag) {
+      const drag = this.textDrag;
+      this.textDrag = null;
+      this.viewportRef()?.nativeElement.releasePointerCapture(event.pointerId);
+
+      if (!drag.moved) {
+        this.focusTextStamp(drag.id);
+      }
+      return;
+    }
+
     this.drawing = false;
     this.panning = false;
     this.viewportRef()?.nativeElement.releasePointerCapture(event.pointerId);
@@ -226,39 +343,54 @@ export class ImageAnnotatorDialogComponent {
     this.scale.update((v) => Math.min(Math.max(v + delta, 0.4), 4));
   }
 
-  protected applyTextStamp(): void {
-    const point = this.pendingTextPoint();
-    const text = this.textInput().trim();
-    const canvas = this.canvasRef()?.nativeElement;
-    if (!point || !text || !canvas) {
+  @HostListener('document:keydown', ['$event'])
+  protected onDocumentKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (this.selectedTextId()) {
+        this.selectedTextId.set(null);
+        return;
+      }
+      this.close();
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
+    if (event.key !== 'Backspace' && event.key !== 'Delete') {
       return;
     }
 
-    ctx.font = '16px sans-serif';
-    ctx.fillStyle = this.strokeColor();
-    ctx.fillText(text, point.x, point.y);
-    this.textStamps.push({ ...point, text });
-    this.textInput.set('');
-    this.pendingTextPoint.set(null);
+    const target = event.target as HTMLElement | null;
+    if (target?.isContentEditable) {
+      return;
+    }
+    if (this.selectedTextId()) {
+      event.preventDefault();
+      this.deleteSelectedText();
+    }
   }
 
-  protected cancelTextStamp(): void {
-    this.pendingTextPoint.set(null);
-    this.textInput.set('');
+  private addTextStamp(x: number, y: number): void {
+    const id = crypto.randomUUID();
+    this.textStamps.update((stamps) => [
+      ...stamps,
+      { id, x, y, text: '', color: this.strokeColor() },
+    ]);
+    this.selectedTextId.set(id);
+    queueMicrotask(() => this.focusTextStamp(id));
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.pendingTextPoint()) {
-      this.cancelTextStamp();
+  private focusTextStamp(id: string): void {
+    const ref = this.textStampRefs().find((item) => item.nativeElement.dataset['stampId'] === id);
+    const element = ref?.nativeElement;
+    if (!element) {
       return;
     }
-    this.close();
+    element.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   }
 
   private canvasPoint(event: PointerEvent, canvas: HTMLCanvasElement): { x: number; y: number } {

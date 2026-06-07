@@ -41,6 +41,9 @@
       </div>
 
       <div class="annotator__edit-actions">
+        @if (selectedTextId()) {
+          <p-button type="button" label="Delete text" icon="pi pi-trash" [text]="true" severity="danger" (onClick)="deleteSelectedText()" />
+        }
         <p-button type="button" label="Undo" icon="pi pi-undo" [text]="true" (onClick)="undo()" />
         <p-button type="button" label="Clear" icon="pi pi-trash" [text]="true" severity="secondary" (onClick)="clearAll()" />
         <p-button type="button" label="Save" icon="pi pi-check" (onClick)="save()" />
@@ -50,6 +53,8 @@
     <div
       #viewport
       class="annotator__viewport"
+      [class.annotator__viewport--text]="tool() === 'text'"
+      [class.annotator__viewport--pan]="tool() === 'pan'"
       (wheel)="onWheel($event)"
       (pointerdown)="onPointerDown($event)"
       (pointermove)="onPointerMove($event)"
@@ -59,18 +64,32 @@
       <div class="annotator__stage" [style.transform]="stageTransform()">
         <img #image class="annotator__image" [src]="imageUrl()" [alt]="title()" (load)="onImageLoad()" draggable="false" />
         <canvas #canvas class="annotator__canvas"></canvas>
+        <div class="annotator__text-layer">
+          @for (stamp of textStamps(); track stamp.id) {
+            <div
+              #textStamp
+              class="annotator__text-stamp"
+              [class.annotator__text-stamp--selected]="selectedTextId() === stamp.id"
+              [attr.data-stamp-id]="stamp.id"
+              [style.left.px]="stamp.x"
+              [style.top.px]="stamp.y"
+              [style.color]="stamp.color"
+              contenteditable="true"
+              spellcheck="false"
+              (input)="onTextInput(stamp.id, $event)"
+              (pointerdown)="onTextStampPointerDown($event, stamp.id)"
+            ></div>
+          }
+        </div>
       </div>
     </div>
 
-    @if (pendingTextPoint(); as point) {
-      <div class="annotator__text-bar">
-        <span class="annotator__text-label">Add text at mark</span>
-        <input pInputText [ngModel]="textInput()" (ngModelChange)="textInput.set($event)" placeholder="Label or note..." />
-        <p-button type="button" label="Place" icon="pi pi-check" (onClick)="applyTextStamp()" />
-        <p-button type="button" label="Cancel" [text]="true" severity="secondary" (onClick)="cancelTextStamp()" />
-      </div>
-    }
-
-    <p class="annotator__hint">Draw · add text · pan · scroll to zoom · save merges annotations into the image</p>
+    <p class="annotator__hint">
+      @if (tool() === 'text') {
+        Click the chart to add text · type directly on the image · drag text to reposition · Delete removes selected text
+      } @else {
+        Draw · pan · scroll to zoom · switch to Text to label the chart on-screen
+      }
+    </p>
   </div>
 </div>

@@ -17,6 +17,7 @@ import { TextareaModule } from 'primeng/textarea';
 
 import type { AnalyzedTimeframe } from '../../core/models/database.types';
 import { ImageAnnotatorDialogComponent } from '../../shared/components/image-annotator-dialog/image-annotator-dialog.component';
+import type { HtfScreenshotItem } from './htf-screenshot-draft.service';
 import { HtfScreenshotDraftService } from './htf-screenshot-draft.service';
 import { timeframeLabel } from './htf-context.utils';
 import {
@@ -48,6 +49,7 @@ export class TimeframeJournalPanelComponent {
   readonly journalGroup = input.required<FormGroup>();
 
   protected readonly annotatorOpen = signal(false);
+  protected readonly annotatingItemId = signal<string | null>(null);
   protected readonly uploadError = signal<string | null>(null);
   protected readonly pasting = signal(false);
   protected readonly dragging = signal(false);
@@ -55,18 +57,22 @@ export class TimeframeJournalPanelComponent {
   protected readonly title = computed(() => `${timeframeLabel(this.timeframe())} chart journal`);
   protected readonly fileInputId = computed(() => `screenshot-file-${this.timeframe()}`);
 
-  protected readonly screenshotDraft = computed(() => {
+  protected readonly screenshotItems = computed((): HtfScreenshotItem[] => {
     this.screenshotDrafts.revisionSnapshot();
-    return this.screenshotDrafts.getDraft(this.timeframe());
+    return this.screenshotDrafts.getItems(this.timeframe());
+  });
+
+  protected readonly annotatingItem = computed((): HtfScreenshotItem | null => {
+    const itemId = this.annotatingItemId();
+    if (!itemId) {
+      return null;
+    }
+    return this.screenshotItems().find((item) => item.id === itemId) ?? null;
   });
 
   /** Paste screenshots with ⌘V anywhere on the page while this panel is open (not in notes). */
   @HostListener('document:paste', ['$event'])
   protected onDocumentPaste(event: ClipboardEvent): void {
-    if (this.screenshotDraft()) {
-      return;
-    }
-
     const target = event.target;
     if (target instanceof HTMLElement && target.closest('textarea, input:not([type=file]), [contenteditable="true"]')) {
       return;
@@ -94,12 +100,14 @@ export class TimeframeJournalPanelComponent {
 
   protected onScreenshotSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+    const files = input.files ? Array.from(input.files) : [];
     input.value = '';
 
-    if (file) {
-      this.applyScreenshotFile(file);
+    if (files.length === 0) {
+      return;
     }
+
+    this.applyScreenshotFiles(files);
   }
 
   protected onDragEnter(event: DragEvent): void {
@@ -129,13 +137,14 @@ export class TimeframeJournalPanelComponent {
     event.preventDefault();
     this.dragging.set(false);
 
-    const file = event.dataTransfer?.files?.[0];
-    if (file) {
-      this.applyScreenshotFile(file);
+    const files = event.dataTransfer?.files ? Array.from(event.dataTransfer.files) : [];
+    const imageFiles = files.filter((file) => file.type.startsWith('image/') || !file.type);
+    if (imageFiles.length > 0) {
+      this.applyScreenshotFiles(imageFiles);
       return;
     }
 
-    this.setUploadError('Drop a PNG, JPEG, or WebP image file.');
+    this.setUploadError('Drop PNG, JPEG, or WebP image files.');
   }
 
   protected async pasteFromClipboard(): Promise<void> {
@@ -162,38 +171,63 @@ export class TimeframeJournalPanelComponent {
     }
   }
 
-  protected removeScreenshot(): void {
-    this.screenshotDrafts.removeDraft(this.timeframe());
+  protected removeScreenshot(itemId: string): void {
+    this.screenshotDrafts.removeItem(this.timeframe(), itemId);
+    if (this.annotatingItemId() === itemId) {
+      this.closeAnnotator();
+    }
     this.setUploadError(null);
   }
 
-  protected openAnnotator(): void {
-    if (this.screenshotDraft()) {
+  protected openAnnotator(itemId: string): void {
+    if (this.screenshotDrafts.getItem(this.timeframe(), itemId)) {
+      this.annotatingItemId.set(itemId);
       this.annotatorOpen.set(true);
     }
   }
 
   protected closeAnnotator(): void {
     this.annotatorOpen.set(false);
+    this.annotatingItemId.set(null);
   }
 
   protected onAnnotatedSaved(file: File): void {
-    this.screenshotDrafts.setDraft(this.timeframe(), file, true);
-    this.annotatorOpen.set(false);
+    const itemId = this.annotatingItemId();
+    if (!itemId) {
+      return;
+    }
+    this.screenshotDrafts.updateItem(this.timeframe(), itemId, file, true);
+    this.closeAnnotator();
     this.cdr.markForCheck();
   }
 
-  private applyScreenshotFile(file: File): void {
+  private applyScreenshotFiles(files: File[]): void {
+    let added = 0;
+    for (const file of files) {
+      if (this.applyScreenshotFile(file, false)) {
+        added += 1;
+      }
+    }
+    if (added > 0) {
+      this.setUploadError(null);
+      this.cdr.markForCheck();
+    }
+  }
+
+  private applyScreenshotFile(file: File, markForCheck = true): boolean {
     const normalized = normalizeScreenshotFile(file, `${this.timeframe()}-chart`);
     const error = validateScreenshotFile(normalized);
     if (error) {
       this.setUploadError(error);
-      return;
+      return false;
     }
 
-    this.setUploadError(null);
-    this.screenshotDrafts.setDraft(this.timeframe(), normalized);
-    this.cdr.markForCheck();
+    this.screenshotDrafts.addItem(this.timeframe(), normalized);
+    if (markForCheck) {
+      this.setUploadError(null);
+      this.cdr.markForCheck();
+    }
+    return true;
   }
 
   private setUploadError(message: string | null): void {

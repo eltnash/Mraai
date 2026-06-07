@@ -62,6 +62,24 @@
     }
   }
 
+  &__gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__gallery-item {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  &__item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
   &__upload-body {
     display: grid;
     justify-items: center;
