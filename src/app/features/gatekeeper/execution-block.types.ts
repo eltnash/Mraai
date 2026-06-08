@@ -1,14 +1,40 @@
 import type { AssetSymbol, DayType, HtfContextSnapshot, PillarJournalsSnapshot, TradeDirection, TradeSessionContext } from '../../core/models/database.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 
+/**
+ * MT5-aligned trade record for one journal (manual entry from platform history).
+ * Column names mirror MetaTrader trade history for easy copy-from-platform workflow.
+ */
 export interface ExecutionFormValue {
+  /** Platform order / deal ticket (MT5: Ticket) */
+  ticket: string | null;
   symbol: AssetSymbol;
+  /** MT5 Type — stored as LONG (buy) / SHORT (sell) */
   direction: TradeDirection;
-  entry_price: number;
-  stop_price: number;
-  size: number;
-  target_price: number | null;
-  notes: string | null;
+  /** MT5 Volume (lots) */
+  volume: number | null;
+  /** MT5 Time (entry) — ISO 8601 */
+  entry_time: string | null;
+  /** MT5 Price (entry) */
+  entry_price: number | null;
+  /** MT5 S/L */
+  stop_price: number | null;
+  /** MT5 T/P */
+  take_profit_price: number | null;
+  /** MT5 Time (exit) — ISO 8601 */
+  exit_time: string | null;
+  /** MT5 Price (exit) */
+  exit_price: number | null;
+  /** MT5 Commission */
+  commission: number | null;
+  /** MT5 Fee */
+  fee: number | null;
+  /** MT5 Swap */
+  swap: number | null;
+  /** MT5 Profit */
+  profit: number | null;
+  /** MT5 Comment */
+  comment: string | null;
 }
 
 export interface ExecutionRiskMetrics {
@@ -29,8 +55,13 @@ export interface GatekeeperSubmitPayload {
     notes: string | null;
     trading_date: string;
     session_context: TradeSessionContext;
-    status: 'OPEN';
+    status: 'OPEN' | 'CLOSED';
     readiness_pct_at_entry: 100;
+    opened_at?: string;
+    closed_at?: string | null;
+    exit_price?: number | null;
+    commissions?: number;
+    net_profit?: number | null;
   };
   audit: {
     location: GatekeeperFormValue['location']['locations'][number];

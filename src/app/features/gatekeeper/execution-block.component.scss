@@ -24,9 +24,31 @@
 
   &__header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 1rem;
     margin-bottom: 1rem;
+  }
+
+  &__subtitle {
+    margin: 0.35rem 0 0;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    line-height: 1.45;
+    max-width: 28rem;
+  }
+
+  &__section-label {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7280;
+  }
+
+  &__auction-tag {
+    margin-top: -0.25rem;
   }
 
   &__title {
@@ -104,11 +126,22 @@
     &--triple {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+
+    &--quad {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @container (max-width: 720px) {
+    &__row--quad {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   @container (max-width: 520px) {
     &__row--double,
-    &__row--triple {
+    &__row--triple,
+    &__row--quad {
       grid-template-columns: 1fr;
     }
   }
@@ -124,6 +157,14 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: #9ca3af;
+    }
+
+    &--readonly {
+      justify-content: flex-end;
+    }
+
+    &--span-2 {
+      grid-column: span 2;
     }
   }
 

@@ -149,8 +149,8 @@ export const TIMEZONE_OPTIONS: SelectOption<string>[] = [
 ];
 
 export const TRADE_DIRECTION_OPTIONS: SelectOption<TradeDirection>[] = [
-  { label: 'Long', value: 'LONG' },
-  { label: 'Short', value: 'SHORT' },
+  { label: 'Buy', value: 'LONG', hint: 'MT5 buy / long' },
+  { label: 'Sell', value: 'SHORT', hint: 'MT5 sell / short' },
 ];
 
 export const DAY_TYPE_OPTIONS: SelectOption<DayType>[] = [

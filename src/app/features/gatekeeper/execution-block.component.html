@@ -5,7 +5,12 @@
   aria-labelledby="execution-block-title"
 >
   <header class="execution-block__header">
-    <h2 id="execution-block-title" class="execution-block__title">Execution</h2>
+    <div>
+      <h2 id="execution-block-title" class="execution-block__title">Execution</h2>
+      <p class="execution-block__subtitle">
+        Record platform trade details (MT5-style). Saved with this journal from entry through exit.
+      </p>
+    </div>
     @if (riskMetrics(); as risk) {
       @if (risk.r_target !== null) {
         <p-tag
@@ -39,9 +44,23 @@
     }
 
     <form class="execution-block__form" [formGroup]="executionForm" (ngSubmit)="onSubmit()">
-      <div class="execution-block__row execution-block__row--double">
+      <p class="execution-block__section-label">Trade identity</p>
+      <div class="execution-block__row execution-block__row--quad">
         <div class="execution-block__field">
-          <label for="direction">Direction</label>
+          <label for="ticket">Ticket</label>
+          <input
+            id="ticket"
+            pInputText
+            type="text"
+            formControlName="ticket"
+            placeholder="Platform order ID"
+            class="data-mono"
+            [disabled]="isLocked()"
+          />
+        </div>
+
+        <div class="execution-block__field">
+          <label for="direction">Type</label>
           <p-select
             inputId="direction"
             formControlName="direction"
@@ -52,17 +71,50 @@
           />
         </div>
 
-        @if (auditDraft()?.auction_type?.day_type; as dayType) {
-          <div class="execution-block__field execution-block__field--readonly">
-            <span class="execution-block__field-label">Auction type</span>
-            <p-tag severity="info" [value]="dayTypeLabel(dayType)" />
-          </div>
-        }
+        <div class="execution-block__field">
+          <label for="volume">Volume</label>
+          <p-inputnumber
+            inputId="volume"
+            formControlName="volume"
+            mode="decimal"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="4"
+            [disabled]="isLocked()"
+            inputStyleClass="data-mono"
+          />
+        </div>
+
+        <div class="execution-block__field execution-block__field--readonly">
+          <span class="execution-block__field-label">Symbol</span>
+          <p-tag severity="secondary" [value]="executionForm.controls.symbol.value" />
+        </div>
       </div>
 
-      <div class="execution-block__row execution-block__row--triple">
+      @if (auditDraft()?.auction_type?.day_type; as dayType) {
+        <p-tag
+          class="execution-block__auction-tag"
+          severity="info"
+          [value]="'Auction: ' + dayTypeLabel(dayType)"
+        />
+      }
+
+      <p class="execution-block__section-label">Entry</p>
+      <div class="execution-block__row execution-block__row--quad">
         <div class="execution-block__field">
-          <label for="entry_price">Entry</label>
+          <label for="entry_time">Time</label>
+          <p-datepicker
+            inputId="entry_time"
+            formControlName="entry_time"
+            [showTime]="true"
+            hourFormat="24"
+            [showIcon]="true"
+            dateFormat="yy-mm-dd"
+            [disabled]="isLocked()"
+          />
+        </div>
+
+        <div class="execution-block__field">
+          <label for="entry_price">Price</label>
           <p-inputnumber
             inputId="entry_price"
             formControlName="entry_price"
@@ -75,7 +127,7 @@
         </div>
 
         <div class="execution-block__field">
-          <label for="stop_price">Stop</label>
+          <label for="stop_price">S / L</label>
           <p-inputnumber
             inputId="stop_price"
             formControlName="stop_price"
@@ -88,25 +140,10 @@
         </div>
 
         <div class="execution-block__field">
-          <label for="size">Size (contracts)</label>
+          <label for="take_profit_price">T / P</label>
           <p-inputnumber
-            inputId="size"
-            formControlName="size"
-            [showButtons]="true"
-            [min]="1"
-            [step]="1"
-            [disabled]="isLocked()"
-            inputStyleClass="data-mono"
-          />
-        </div>
-      </div>
-
-      <div class="execution-block__row">
-        <div class="execution-block__field execution-block__field--optional">
-          <label for="target_price">Target (optional, for R calc)</label>
-          <p-inputnumber
-            inputId="target_price"
-            formControlName="target_price"
+            inputId="take_profit_price"
+            formControlName="take_profit_price"
             mode="decimal"
             [minFractionDigits]="2"
             [maxFractionDigits]="6"
@@ -116,16 +153,100 @@
         </div>
       </div>
 
-      <div class="execution-block__field">
-        <label for="notes">Notes (optional)</label>
-        <textarea
-          pTextarea
-          id="notes"
-          formControlName="notes"
-          rows="2"
-          class="execution-block__notes"
-          [disabled]="isLocked()"
-        ></textarea>
+      <p class="execution-block__section-label">Exit &amp; result</p>
+      <div class="execution-block__row execution-block__row--quad">
+        <div class="execution-block__field">
+          <label for="exit_time">Time</label>
+          <p-datepicker
+            inputId="exit_time"
+            formControlName="exit_time"
+            [showTime]="true"
+            hourFormat="24"
+            [showIcon]="true"
+            dateFormat="yy-mm-dd"
+            [disabled]="isLocked()"
+          />
+        </div>
+
+        <div class="execution-block__field">
+          <label for="exit_price">Price</label>
+          <p-inputnumber
+            inputId="exit_price"
+            formControlName="exit_price"
+            mode="decimal"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="6"
+            [disabled]="isLocked()"
+            inputStyleClass="data-mono"
+          />
+        </div>
+
+        <div class="execution-block__field">
+          <label for="commission">Commission</label>
+          <p-inputnumber
+            inputId="commission"
+            formControlName="commission"
+            mode="decimal"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="2"
+            [disabled]="isLocked()"
+            inputStyleClass="data-mono"
+          />
+        </div>
+
+        <div class="execution-block__field">
+          <label for="fee">Fee</label>
+          <p-inputnumber
+            inputId="fee"
+            formControlName="fee"
+            mode="decimal"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="2"
+            [disabled]="isLocked()"
+            inputStyleClass="data-mono"
+          />
+        </div>
+      </div>
+
+      <div class="execution-block__row execution-block__row--triple">
+        <div class="execution-block__field">
+          <label for="swap">Swap</label>
+          <p-inputnumber
+            inputId="swap"
+            formControlName="swap"
+            mode="decimal"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="2"
+            [disabled]="isLocked()"
+            inputStyleClass="data-mono"
+          />
+        </div>
+
+        <div class="execution-block__field">
+          <label for="profit">Profit</label>
+          <p-inputnumber
+            inputId="profit"
+            formControlName="profit"
+            mode="decimal"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="2"
+            [disabled]="isLocked()"
+            inputStyleClass="data-mono"
+          />
+        </div>
+
+        <div class="execution-block__field execution-block__field--span-2">
+          <label for="comment">Comment</label>
+          <textarea
+            pTextarea
+            id="comment"
+            formControlName="comment"
+            rows="2"
+            class="execution-block__notes"
+            placeholder="Platform comment or trade notes"
+            [disabled]="isLocked()"
+          ></textarea>
+        </div>
       </div>
 
       <p-divider class="execution-block__divider" />
@@ -137,7 +258,7 @@
             <dd class="data-mono">{{ risk.stopDistancePts }} pts</dd>
           </div>
           <div class="execution-block__risk-row">
-            <dt>Risk / contract</dt>
+            <dt>Risk / lot</dt>
             <dd class="data-mono">
               {{ risk.risk_per_contract | currency: 'USD' : 'symbol' : '1.2-2' }}
             </dd>
@@ -164,7 +285,7 @@
       <footer class="execution-block__footer">
         <p-button
           type="submit"
-          label="Execute Trade"
+          label="Save trade to ledger"
           icon="pi pi-bolt"
           severity="success"
           [disabled]="!canSubmit()"

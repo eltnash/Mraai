@@ -146,6 +146,7 @@ export class GatekeeperPageComponent implements AfterViewInit {
       if (wizard) {
         await wizard.loadFromDraft(result);
       }
+      this.executionRef()?.loadFromDraft(result.executionForm, result.symbol);
 
       this.messageService.add({
         severity: 'info',
@@ -189,6 +190,7 @@ export class GatekeeperPageComponent implements AfterViewInit {
       if (result.restored) {
         sessionBar?.applyLoadedDraft(result);
         await wizard.loadFromDraft(result);
+        this.executionRef()?.loadFromDraft(result.executionForm, result.symbol);
         this.messageService.add({
           severity: 'info',
           summary: 'Journal restored',
@@ -198,6 +200,7 @@ export class GatekeeperPageComponent implements AfterViewInit {
       } else {
         sessionBar?.applyLoadedDraft(result);
         await wizard.loadFromDraft(result);
+        this.executionRef()?.loadFromDraft(result.executionForm, result.symbol);
       }
     } catch (err) {
       if (token !== this.sessionLoadToken) {

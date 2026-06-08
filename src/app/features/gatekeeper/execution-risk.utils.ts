@@ -27,25 +27,25 @@ export function computeStopDistancePts(
 export function computeRiskMetrics(
   form: Pick<
     ExecutionFormValue,
-    'symbol' | 'direction' | 'entry_price' | 'stop_price' | 'size' | 'target_price'
+    'symbol' | 'direction' | 'entry_price' | 'stop_price' | 'volume' | 'take_profit_price'
   >,
 ): ExecutionRiskMetrics {
-  const stopDistancePts = computeStopDistancePts(
-    form.entry_price,
-    form.stop_price,
-    form.direction,
-  );
+  const entry = form.entry_price ?? 0;
+  const stop = form.stop_price ?? 0;
+  const volume = form.volume ?? 0;
+
+  const stopDistancePts = computeStopDistancePts(entry, stop, form.direction);
 
   const pointValue = POINT_VALUE_USD[form.symbol];
   const risk_per_contract = stopDistancePts * pointValue;
-  const total_risk = risk_per_contract * form.size;
+  const total_risk = risk_per_contract * volume;
 
   let r_target: number | null = null;
-  if (form.target_price != null && stopDistancePts > 0) {
+  if (form.take_profit_price != null && stopDistancePts > 0) {
     const rewardPts =
       form.direction === 'LONG'
-        ? form.target_price - form.entry_price
-        : form.entry_price - form.target_price;
+        ? form.take_profit_price - entry
+        : entry - form.take_profit_price;
     if (rewardPts > 0) {
       r_target = roundTo(rewardPts / stopDistancePts, 2);
     }

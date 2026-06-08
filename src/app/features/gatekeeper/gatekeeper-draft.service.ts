@@ -10,9 +10,11 @@ import type {
 import { GatekeeperMediaService } from '../../core/supabase/gatekeeper-media.service';
 import { SupabaseService } from '../../core/supabase/supabase.service';
 import {
+  defaultExecutionFormValue,
   defaultGatekeeperFormValue,
   mergeDraftMediaIntoAudit,
   normalizeDraftMedia,
+  normalizeExecutionFormValue,
   normalizeGatekeeperFormValue,
   screenshotRefsForScope,
 } from './gatekeeper-draft.mapper';
@@ -31,6 +33,7 @@ import {
   normalizeJournalName,
   validateJournalName,
 } from './gatekeeper-draft.types';
+import type { ExecutionFormValue } from './execution-block.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 import type { JournalScreenshotScope } from './gatekeeper-screenshot-draft.service';
 import type { TradingSessionState } from './trading-session.types';
@@ -38,9 +41,9 @@ import type { TradingSessionState } from './trading-session.types';
 const SAVE_DEBOUNCE_MS = 1500;
 
 const DRAFT_SELECT =
-  'id, user_id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, updated_at';
+  'id, user_id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, execution_form, updated_at';
 
-interface PendingFormSave {
+interface PendingWizardSave {
   form: GatekeeperFormValue;
   uiState: GatekeeperDraftUiState;
 }
@@ -57,8 +60,10 @@ export class GatekeeperDraftService {
   private readonly mediaState = signal<GatekeeperDraftMedia>(EMPTY_DRAFT_MEDIA);
   private readonly saveStatus = signal<GatekeeperDraftSaveStatus>('idle');
   private readonly saveError = signal<string | null>(null);
+  private lastWizardSnapshot: PendingWizardSave | null = null;
+  private lastExecutionSnapshot: ExecutionFormValue | null = null;
 
-  private readonly saveQueue = new Subject<PendingFormSave>();
+  private readonly saveQueue = new Subject<void>();
   private saveSubscriptionStarted = false;
 
   readonly status = this.saveStatus.asReadonly();
@@ -158,6 +163,7 @@ export class GatekeeperDraftService {
       wizard_form: defaultGatekeeperFormValue(),
       media: EMPTY_DRAFT_MEDIA,
       ui_state: DEFAULT_DRAFT_UI_STATE,
+      execution_form: defaultExecutionFormValue(sessionState.symbol),
     };
 
     const { data: created, error: insertError } = await client
@@ -281,12 +287,22 @@ export class GatekeeperDraftService {
     if (!this.draftId()) {
       return;
     }
-    this.saveQueue.next({ form, uiState });
+    this.lastWizardSnapshot = { form, uiState };
+    this.saveQueue.next();
+  }
+
+  scheduleExecutionSave(executionForm: ExecutionFormValue): void {
+    if (!this.draftId()) {
+      return;
+    }
+    this.lastExecutionSnapshot = executionForm;
+    this.saveQueue.next();
   }
 
   async saveNow(form: GatekeeperFormValue, uiState: GatekeeperDraftUiState): Promise<void> {
     await this.ensureDraftReady();
-    await this.flushSave({ form, uiState });
+    this.lastWizardSnapshot = { form, uiState };
+    await this.flushSave();
     if (this.saveStatus() === 'error') {
       throw new Error(this.saveError() ?? 'Save failed');
     }
@@ -404,6 +420,8 @@ export class GatekeeperDraftService {
     this.saveError.set(null);
     this.initPromise = null;
     this.initPromiseKey = null;
+    this.lastWizardSnapshot = null;
+    this.lastExecutionSnapshot = null;
   }
 
   private sessionStateFromRow(row: GatekeeperDraftRow): TradingSessionState {
@@ -468,6 +486,7 @@ export class GatekeeperDraftService {
   private applyLoadedDraft(row: GatekeeperDraftRow, restored: boolean): GatekeeperDraftLoadResult {
     const wizardForm = normalizeGatekeeperFormValue(row.wizard_form);
     const media = normalizeDraftMedia(row.media);
+    const executionForm = normalizeExecutionFormValue(row.execution_form, row.symbol as AssetSymbol);
     const uiState: GatekeeperDraftUiState = {
       active_step: row.ui_state?.active_step ?? DEFAULT_DRAFT_UI_STATE.active_step,
       active_timeframe_tab:
@@ -476,6 +495,8 @@ export class GatekeeperDraftService {
 
     this.draftId.set(row.id);
     this.mediaState.set(media);
+    this.lastWizardSnapshot = { form: wizardForm, uiState };
+    this.lastExecutionSnapshot = executionForm;
     this.saveStatus.set('saved');
     this.saveError.set(null);
 
@@ -489,6 +510,7 @@ export class GatekeeperDraftService {
       wizardForm,
       media,
       uiState,
+      executionForm,
     };
   }
 
@@ -498,14 +520,14 @@ export class GatekeeperDraftService {
     }
     this.saveSubscriptionStarted = true;
 
-    this.saveQueue.pipe(debounceTime(SAVE_DEBOUNCE_MS)).subscribe((pending) => {
-      void this.flushSave(pending);
+    this.saveQueue.pipe(debounceTime(SAVE_DEBOUNCE_MS)).subscribe(() => {
+      void this.flushSave();
     });
   }
 
-  private async flushSave(pending: PendingFormSave): Promise<void> {
+  private async flushSave(): Promise<void> {
     const draftId = this.draftId();
-    if (!draftId) {
+    if (!draftId || (!this.lastWizardSnapshot && !this.lastExecutionSnapshot)) {
       return;
     }
 
@@ -514,18 +536,26 @@ export class GatekeeperDraftService {
 
     const session = this.boundSession();
     const payload: {
-      wizard_form: GatekeeperFormValue;
-      ui_state: GatekeeperDraftUiState;
+      wizard_form?: GatekeeperFormValue;
+      ui_state?: GatekeeperDraftUiState;
+      execution_form?: ExecutionFormValue;
       media: GatekeeperDraftMedia;
       trading_date?: string;
       symbol?: AssetSymbol;
       session_context?: TradingSessionState['session'];
       journal_name?: string;
     } = {
-      wizard_form: pending.form,
-      ui_state: pending.uiState,
       media: this.mediaState(),
     };
+
+    if (this.lastWizardSnapshot) {
+      payload.wizard_form = this.lastWizardSnapshot.form;
+      payload.ui_state = this.lastWizardSnapshot.uiState;
+    }
+
+    if (this.lastExecutionSnapshot) {
+      payload.execution_form = this.lastExecutionSnapshot;
+    }
 
     if (session) {
       payload.trading_date = session.session.trading_date;

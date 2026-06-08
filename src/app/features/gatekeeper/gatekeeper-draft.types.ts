@@ -6,6 +6,7 @@ import type {
   TradeSessionContext,
 } from '../../core/models/database.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
+import type { ExecutionFormValue } from './execution-block.types';
 
 export type GatekeeperDraftSaveStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
@@ -29,6 +30,7 @@ export interface GatekeeperDraftRow {
   wizard_form: GatekeeperFormValue;
   media: GatekeeperDraftMedia;
   ui_state: GatekeeperDraftUiState;
+  execution_form?: ExecutionFormValue | Record<string, unknown>;
   updated_at: string;
 }
 
@@ -42,6 +44,7 @@ export interface GatekeeperDraftLoadResult {
   wizardForm: GatekeeperFormValue;
   media: GatekeeperDraftMedia;
   uiState: GatekeeperDraftUiState;
+  executionForm: ExecutionFormValue;
 }
 
 export interface GatekeeperJournalSummary {

@@ -202,3 +202,12 @@ CREATE INDEX IF NOT EXISTS gatekeeper_drafts_user_list_idx
 
 COMMENT ON COLUMN public.gatekeeper_drafts.archived_at IS
   'When set, journal is archived and hidden from the default Journal tab list';
+
+-- ---------------------------------------------------------------------------
+-- 10. Execution block draft fields on named journals
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.gatekeeper_drafts
+  ADD COLUMN IF NOT EXISTS execution_form JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN public.gatekeeper_drafts.execution_form IS
+  'Draft execution block fields saved with the named Gatekeeper journal before Execute Trade';

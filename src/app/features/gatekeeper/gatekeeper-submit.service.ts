@@ -75,7 +75,7 @@ export class GatekeeperSubmitService {
       .insert({
         id: draftId,
         user_id: user.id,
-        status: 'OPEN',
+        status: payload.trade.status,
         readiness_pct_at_entry: 100,
         symbol: payload.trade.symbol,
         direction: payload.trade.direction,
@@ -86,6 +86,11 @@ export class GatekeeperSubmitService {
         notes: payload.trade.notes,
         trading_date: payload.trade.trading_date,
         session_context: payload.trade.session_context,
+        opened_at: payload.trade.opened_at ?? new Date().toISOString(),
+        closed_at: payload.trade.closed_at ?? null,
+        exit_price: payload.trade.exit_price ?? null,
+        commissions: payload.trade.commissions ?? 0,
+        net_profit: payload.trade.net_profit ?? null,
       })
       .select('id')
       .single();
