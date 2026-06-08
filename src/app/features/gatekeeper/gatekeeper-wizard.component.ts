@@ -15,11 +15,12 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { TagModule } from 'primeng/tag';
 
-import type { AnalyzedTimeframe, DayType, PillarStepKey } from '../../core/models/database.types';
+import type { AnalyzedTimeframe, AuctionLocation, DayType, PillarStepKey } from '../../core/models/database.types';
 import {
   ANALYZED_TIMEFRAME_KEYS,
   ANALYZED_TIMEFRAME_OPTIONS,
   DAY_TYPE_OPTIONS,
+  LOCATION_PILLAR_OPTIONS,
 } from '../../core/supabase/enum-options';
 import { EnumPillSelectComponent } from '../../shared/components/enum-pill-select/enum-pill-select.component';
 import {
@@ -31,7 +32,7 @@ import {
   dayTypeLabel,
   getPlaybookBehaviorOptions,
   getPlaybookConfirmationOptions,
-  getPlaybookLocationOptions,
+  formatLocationLabels,
   invalidationPlaceholder,
   playbookDescription,
   playbookForDayType,
@@ -116,6 +117,7 @@ export class GatekeeperWizardComponent {
   protected readonly playbookDescription = playbookDescription;
   protected readonly auctionTypeProfileReminder = AUCTION_TYPE_PROFILE_REMINDER;
   protected readonly dayTypeLabel = dayTypeLabel;
+  protected readonly formatLocationLabels = formatLocationLabels;
 
   protected readonly draftSaveStatus = this.draftService.status;
 
@@ -186,10 +188,7 @@ export class GatekeeperWizardComponent {
     return dayType ? playbookForDayType(dayType) : null;
   });
 
-  protected readonly locationOptions = computed(() => {
-    const playbook = this.activePlaybook();
-    return playbook ? getPlaybookLocationOptions(playbook) : [];
-  });
+  protected readonly locationPillarOptions = LOCATION_PILLAR_OPTIONS;
 
   protected readonly behaviorOptions = computed(() => {
     const playbook = this.activePlaybook();
@@ -241,7 +240,9 @@ export class GatekeeperWizardComponent {
         key: 'location',
         label: `Location (${pillarFocusLabel(value.location.focus_timeframe)})`,
         valid: this.isStepValid('location'),
-        value: value.location.location,
+        value: value.location.locations.length
+          ? formatLocationLabels(value.location.locations)
+          : null,
       },
       {
         key: 'behavior',
@@ -283,7 +284,7 @@ export class GatekeeperWizardComponent {
     });
 
     this.form.get('is_retest')?.valueChanges.subscribe(() => {
-      this.form.get('location.location')?.updateValueAndValidity({ emitEvent: true });
+      this.form.get('location.locations')?.updateValueAndValidity({ emitEvent: true });
     });
 
     this.stepGroup('auction_type')
@@ -405,6 +406,17 @@ export class GatekeeperWizardComponent {
     return this.journalGroup(tf).valid && this.screenshotDrafts.hasDraft({ kind: 'htf', id: tf });
   }
 
+  protected selectedHints(options: { value: string; hint?: string }[], values: string[] | null): string {
+    if (!values?.length) {
+      return '';
+    }
+
+    return values
+      .map((value) => options.find((option) => option.value === value)?.hint)
+      .filter((hint): hint is string => Boolean(hint))
+      .join(' · ');
+  }
+
   protected selectedHint(options: { value: string; hint?: string }[], value: string | null): string {
     return options.find((option) => option.value === value)?.hint ?? '';
   }
@@ -506,15 +518,16 @@ export class GatekeeperWizardComponent {
 
   private clearIncompatiblePillarSelections(dayType: DayType): void {
     const playbook = playbookForDayType(dayType);
-    const locationValues = new Set(getPlaybookLocationOptions(playbook).map((option) => option.value));
+    const locationValues = new Set(LOCATION_PILLAR_OPTIONS.map((option) => option.value));
     const behaviorValues = new Set(getPlaybookBehaviorOptions(playbook).map((option) => option.value));
     const confirmationValues = new Set(
       getPlaybookConfirmationOptions(playbook).map((option) => option.value),
     );
 
-    const location = this.stepGroup('location').get('location')?.value;
-    if (location && !locationValues.has(location)) {
-      this.stepGroup('location').patchValue({ location: null }, { emitEvent: true });
+    const locations = (this.stepGroup('location').get('locations')?.value ?? []) as AuctionLocation[];
+    const filtered = locations.filter((location) => locationValues.has(location));
+    if (filtered.length !== locations.length) {
+      this.stepGroup('location').patchValue({ locations: filtered }, { emitEvent: true });
     }
 
     const behavior = this.stepGroup('behavior').get('behavior')?.value;

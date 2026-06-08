@@ -43,6 +43,16 @@ export const AUCTION_LOCATION_OPTIONS: SelectOption<AuctionLocation>[] = [
   { label: 'LVN', value: 'LVN', hint: 'Low volume node — thin liquidity, fast migration' },
 ];
 
+/** Location pillar — primary selectable auction levels. */
+export const LOCATION_PILLAR_OPTIONS: SelectOption<AuctionLocation>[] = [
+  { label: 'VWAP', value: 'Session_VWAP', hint: 'Current session volume-weighted average price' },
+  { label: 'Anchored VWAP', value: 'Anchored_VWAP', hint: 'VWAP anchored to a structural event or session open' },
+  { label: 'VAL', value: 'VAL', hint: 'Value area low — lower boundary of accepted value' },
+  { label: 'VAH', value: 'VAH', hint: 'Value area high — upper boundary of accepted value' },
+  { label: 'LVN', value: 'LVN', hint: 'Low volume node — thin liquidity, fast migration' },
+  { label: 'Order Block', value: 'Order_Block', hint: 'Institutional footprint — last opposing candle before displacement' },
+];
+
 export const MARKET_BEHAVIOR_OPTIONS: SelectOption<MarketBehavior>[] = [
   {
     label: 'Rejection',

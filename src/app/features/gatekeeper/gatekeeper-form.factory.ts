@@ -58,6 +58,13 @@ export function atLeastOneCheckedValidator(): ValidatorFn {
   };
 }
 
+export function atLeastOneSelectedValidator<T>(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value as T[] | null | undefined;
+    return value?.length ? null : { atLeastOneSelected: true };
+  };
+}
+
 export function retestGateValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const root = control.root;
@@ -236,8 +243,8 @@ export function createGatekeeperForm(fb: FormBuilder) {
     is_retest: fb.nonNullable.control(false, { validators: [Validators.requiredTrue] }),
     location: fb.group({
       ...createPillarStepBase(fb),
-      location: fb.control<AuctionLocation | null>(null, [
-        Validators.required,
+      locations: fb.nonNullable.control<AuctionLocation[]>([], [
+        atLeastOneSelectedValidator<AuctionLocation>(),
         retestGateValidator(),
       ]),
     }),

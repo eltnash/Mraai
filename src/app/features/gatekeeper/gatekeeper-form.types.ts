@@ -44,7 +44,7 @@ export interface PillarStepFormValue {
 }
 
 export interface LocationStepValue extends PillarStepFormValue {
-  location: AuctionLocation | null;
+  locations: AuctionLocation[];
 }
 
 export interface BehaviorStepValue extends PillarStepFormValue {

@@ -205,6 +205,7 @@ export interface ExecutionAudit {
   id: string;
   trade_id: string;
   location: AuctionLocation;
+  locations: AuctionLocation[];
   behavior: MarketBehavior;
   confirmation: ConfirmationTrigger;
   invalidation_level: string;

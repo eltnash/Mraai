@@ -15,19 +15,20 @@ export class GatekeeperSubmitService {
   private readonly draftService = inject(GatekeeperDraftService);
 
   mapFormToAudit(form: GatekeeperFormValue): GatekeeperSubmitPayload['audit'] {
-    const location = form.location.location;
+    const locations = form.location.locations;
     const behavior = form.behavior.behavior;
     const confirmation = form.confirmation.confirmation;
     const invalidationPrice = form.invalidation.invalidation_price;
 
-    if (!location || !behavior || !confirmation || invalidationPrice == null) {
+    if (locations.length === 0 || !behavior || !confirmation || invalidationPrice == null) {
       throw new Error('Incomplete pillar data');
     }
 
     const { htf_context, pillar_journals } = this.draftService.mergeDraftMediaIntoAudit(form);
 
     return {
-      location,
+      location: locations[0],
+      locations,
       behavior,
       confirmation,
       invalidation_level: form.invalidation.invalidation_level.trim(),

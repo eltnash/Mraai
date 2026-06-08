@@ -33,7 +33,8 @@ export interface GatekeeperSubmitPayload {
     readiness_pct_at_entry: 100;
   };
   audit: {
-    location: NonNullable<GatekeeperFormValue['location']['location']>;
+    location: GatekeeperFormValue['location']['locations'][number];
+    locations: GatekeeperFormValue['location']['locations'];
     behavior: NonNullable<GatekeeperFormValue['behavior']['behavior']>;
     confirmation: NonNullable<GatekeeperFormValue['confirmation']['confirmation']>;
     invalidation_level: string;

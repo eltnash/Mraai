@@ -9,6 +9,7 @@ import {
   AUCTION_LOCATION_OPTIONS,
   CONFIRMATION_TRIGGER_OPTIONS,
   DAY_TYPE_OPTIONS,
+  LOCATION_PILLAR_OPTIONS,
   MARKET_BEHAVIOR_OPTIONS,
 } from '../../core/supabase/enum-options';
 
@@ -21,8 +22,11 @@ export const AUCTION_TYPE_PROFILE_REMINDER =
 const FADE_LOCATIONS: AuctionLocation[] = [
   'VAH',
   'VAL',
-  'POC',
   'Session_VWAP',
+  'Anchored_VWAP',
+  'LVN',
+  'Order_Block',
+  'POC',
   'Composite_VAH',
   'Composite_VAL',
   'Composite_POC',
@@ -117,6 +121,16 @@ export function invalidationPlaceholder(playbook: AuctionPlaybook): string {
 export function dayTypeLabel(dayType: DayType): string {
   const option = DAY_TYPE_OPTIONS.find((item) => item.value === dayType);
   return option?.label ?? dayType;
+}
+
+export function formatLocationLabels(locations: AuctionLocation[]): string {
+  if (locations.length === 0) {
+    return '';
+  }
+
+  return locations
+    .map((location) => LOCATION_PILLAR_OPTIONS.find((option) => option.value === location)?.label ?? location)
+    .join(' · ');
 }
 
 export function filterOptions<T extends string>(

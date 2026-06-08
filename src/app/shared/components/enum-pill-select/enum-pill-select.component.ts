@@ -28,29 +28,51 @@ export class EnumPillSelectComponent<T extends string = string> implements Contr
 
   readonly options = input.required<PillOption<T>[]>();
   readonly ariaLabel = input('Select option');
+  readonly multiple = input(false);
 
-  protected value: T | null = null;
+  protected value: T | T[] | null = null;
   protected disabled = false;
 
-  private onChange: (value: T | null) => void = () => {};
+  private onChange: (value: T | T[] | null) => void = () => {};
   private onTouched: () => void = () => {};
+
+  protected isSelected(optionValue: T): boolean {
+    if (this.multiple()) {
+      return Array.isArray(this.value) && this.value.includes(optionValue);
+    }
+    return this.value === optionValue;
+  }
 
   protected select(optionValue: T): void {
     if (this.disabled) {
       return;
     }
-    this.value = optionValue;
-    this.onChange(optionValue);
+
+    if (this.multiple()) {
+      const current = Array.isArray(this.value) ? [...this.value] : [];
+      const index = current.indexOf(optionValue);
+      if (index >= 0) {
+        current.splice(index, 1);
+      } else {
+        current.push(optionValue);
+      }
+      this.value = current;
+      this.onChange(current);
+    } else {
+      this.value = optionValue;
+      this.onChange(optionValue);
+    }
+
     this.onTouched();
     this.cdr.markForCheck();
   }
 
-  writeValue(value: T | null): void {
+  writeValue(value: T | T[] | null): void {
     this.value = value;
     this.cdr.markForCheck();
   }
 
-  registerOnChange(fn: (value: T | null) => void): void {
+  registerOnChange(fn: (value: T | T[] | null) => void): void {
     this.onChange = fn;
   }
 

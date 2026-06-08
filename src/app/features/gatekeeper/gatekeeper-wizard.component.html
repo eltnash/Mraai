@@ -189,12 +189,16 @@
 
           <div class="gatekeeper-form__fields" formGroupName="location">
             <label class="gatekeeper-form__label">Auction location</label>
+            <p class="gatekeeper-form__hint gatekeeper-form__hint--lead">
+              Select all levels confluencing at your retest — tap again to deselect.
+            </p>
             <app-enum-pill-select
-              formControlName="location"
+              formControlName="locations"
               ariaLabel="Auction location"
-              [options]="locationOptions()"
+              [options]="locationPillarOptions"
+              [multiple]="true"
             />
-            @if (selectedHint(locationOptions(), stepGroup('location').get('location')?.value); as hint) {
+            @if (selectedHints(locationPillarOptions, stepGroup('location').get('locations')?.value); as hint) {
               <p class="gatekeeper-form__hint">{{ hint }}</p>
             }
           </div>
@@ -202,7 +206,7 @@
           @if (!isStepValid('location') && stepGroup('location').touched) {
             <p-message
               severity="warn"
-              text="Select a location, add at least one screenshot, and write tagged notes (minimum 20 characters)."
+              text="Select at least one location, add at least one screenshot, and write tagged notes (minimum 20 characters)."
             />
           }
         </section>

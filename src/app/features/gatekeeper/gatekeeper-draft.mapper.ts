@@ -1,5 +1,6 @@
 import type {
   AnalyzedTimeframe,
+  AuctionLocation,
   HtfContextSnapshot,
   PillarJournalsSnapshot,
   PillarStepKey,
@@ -7,7 +8,7 @@ import type {
 } from '../../core/models/database.types';
 import { ANALYZED_TIMEFRAME_KEYS, HTF_ANALYSIS_TOOL_OPTIONS } from '../../core/supabase/enum-options';
 import { EMPTY_TAGGED_NOTES } from '../../shared/components/tagged-notes-editor/tagged-notes.utils';
-import type { GatekeeperFormValue, HtfNarrativeFormValue } from './gatekeeper-form.types';
+import type { GatekeeperFormValue, HtfNarrativeFormValue, LocationStepValue } from './gatekeeper-form.types';
 import type { GatekeeperDraftMedia } from './gatekeeper-draft.types';
 import { mapFormToHtfContext } from './htf-context.utils';
 import { mapFormToPillarJournals } from './pillar-context.utils';
@@ -47,6 +48,17 @@ function defaultTimeframeJournals(): GatekeeperFormValue['context']['timeframe_j
   );
 }
 
+function normalizeLocationSelections(
+  location: Partial<LocationStepValue> | undefined,
+): AuctionLocation[] {
+  if (Array.isArray(location?.locations)) {
+    return location.locations;
+  }
+
+  const legacy = (location as { location?: AuctionLocation | null } | undefined)?.location;
+  return legacy ? [legacy] : [];
+}
+
 export function defaultGatekeeperFormValue(): GatekeeperFormValue {
   return {
     context: {
@@ -59,7 +71,7 @@ export function defaultGatekeeperFormValue(): GatekeeperFormValue {
     location: {
       focus_timeframe: 'M15',
       notes_content: { ...EMPTY_TAGGED_NOTES },
-      location: null,
+      locations: [],
     },
     behavior: {
       focus_timeframe: 'M15',
@@ -116,7 +128,11 @@ export function normalizeGatekeeperFormValue(raw: unknown): GatekeeperFormValue 
     },
     auction_type: { ...defaults.auction_type, ...value.auction_type },
     is_retest: value.is_retest ?? defaults.is_retest,
-    location: { ...defaults.location, ...value.location },
+    location: {
+      ...defaults.location,
+      ...value.location,
+      locations: normalizeLocationSelections(value.location),
+    },
     behavior: { ...defaults.behavior, ...value.behavior },
     confirmation: { ...defaults.confirmation, ...value.confirmation },
     invalidation: { ...defaults.invalidation, ...value.invalidation },
