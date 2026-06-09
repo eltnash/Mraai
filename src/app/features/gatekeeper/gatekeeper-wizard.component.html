@@ -1,6 +1,7 @@
 <form class="gatekeeper-form" [formGroup]="form">
   <app-gatekeeper-step-tabs
     [steps]="stepTabs()"
+    density="comfortable"
     ariaLabel="Qualification steps"
     (stepSelect)="goToStep($event)"
   />

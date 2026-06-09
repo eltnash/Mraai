@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { TooltipModule } from 'primeng/tooltip';
 
-import type { GatekeeperStepTabItem } from './gatekeeper-step-tabs.types';
+import type { GatekeeperStepTabDensity, GatekeeperStepTabItem } from './gatekeeper-step-tabs.types';
 
 @Component({
   selector: 'app-gatekeeper-step-tabs',
@@ -13,6 +13,7 @@ import type { GatekeeperStepTabItem } from './gatekeeper-step-tabs.types';
 export class GatekeeperStepTabsComponent {
   readonly steps = input.required<GatekeeperStepTabItem[]>();
   readonly interactive = input(true);
+  readonly density = input<GatekeeperStepTabDensity>('compact');
   readonly ariaLabel = input('Gatekeeper steps');
 
   readonly stepSelect = output<number>();

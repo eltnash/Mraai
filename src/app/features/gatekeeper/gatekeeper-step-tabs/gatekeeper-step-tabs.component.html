@@ -1,4 +1,8 @@
-<nav class="gk-step-tabs" [attr.aria-label]="ariaLabel()">
+<nav
+  class="gk-step-tabs"
+  [class.gk-step-tabs--comfortable]="density() === 'comfortable'"
+  [attr.aria-label]="ariaLabel()"
+>
   @for (step of steps(); track step.number) {
     @if (interactive()) {
       <button
