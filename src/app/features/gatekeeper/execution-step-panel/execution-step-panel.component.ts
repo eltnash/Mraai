@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   input,
+  OnInit,
   output,
   signal,
 } from '@angular/core';
@@ -14,7 +15,6 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DatePickerModule } from 'primeng/datepicker';
-import { DividerModule } from 'primeng/divider';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -22,24 +22,24 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 
-import type { AssetSymbol } from '../../core/models/database.types';
-import { TRADE_DIRECTION_OPTIONS } from '../../core/supabase/enum-options';
-import { GatekeeperDraftService } from './gatekeeper-draft.service';
-import { GatekeeperSubmitService } from './gatekeeper-submit.service';
-import { dayTypeLabel } from './auction-playbook.utils';
+import type { AssetSymbol } from '../../../core/models/database.types';
+import { TRADE_DIRECTION_OPTIONS } from '../../../core/supabase/enum-options';
+import { GatekeeperDraftService } from '../gatekeeper-draft.service';
+import { GatekeeperSubmitService } from '../gatekeeper-submit.service';
+import { dayTypeLabel } from '../auction-playbook.utils';
 import {
   createExecutionForm,
   executionFormToDraftValue,
   patchExecutionFormFromDraft,
-} from './execution-form.factory';
-import type { ExecutionFormValue, GatekeeperSubmitResult } from './execution-block.types';
-import type { GatekeeperFormValue } from './gatekeeper-form.types';
-import type { TradingSessionState } from './trading-session.types';
-import { formatSessionSummary } from './trading-session.utils';
-import { computeRiskMetrics, formatUsd, isStopPlacementValid } from './execution-risk.utils';
+} from '../execution-form.factory';
+import type { ExecutionFormValue, GatekeeperSubmitResult } from '../execution-block.types';
+import type { GatekeeperFormValue } from '../gatekeeper-form.types';
+import type { TradingSessionState } from '../trading-session.types';
+import { formatSessionSummary } from '../trading-session.utils';
+import { computeRiskMetrics, formatUsd, isStopPlacementValid } from '../execution-risk.utils';
 
 @Component({
-  selector: 'app-execution-block',
+  selector: 'app-execution-step-panel',
   imports: [
     ReactiveFormsModule,
     CurrencyPipe,
@@ -50,26 +50,25 @@ import { computeRiskMetrics, formatUsd, isStopPlacementValid } from './execution
     TextareaModule,
     ButtonModule,
     MessageModule,
-    DividerModule,
     TagModule,
     ConfirmDialogModule,
   ],
-  templateUrl: './execution-block.component.html',
-  styleUrl: './execution-block.component.scss',
+  templateUrl: './execution-step-panel.component.html',
+  styleUrl: './execution-step-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [ConfirmationService],
 })
-export class ExecutionBlockComponent {
+export class ExecutionStepPanelComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly submitService = inject(GatekeeperSubmitService);
   private readonly draftService = inject(GatekeeperDraftService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
+  readonly sessionState = input.required<TradingSessionState | null>();
   readonly pillarsQualified = input.required<boolean>();
   readonly readinessPct = input.required<number>();
   readonly auditDraft = input.required<GatekeeperFormValue | null>();
-  readonly sessionState = input.required<TradingSessionState | null>();
 
   readonly tradeSubmitted = output<GatekeeperSubmitResult>();
 
@@ -104,7 +103,7 @@ export class ExecutionBlockComponent {
     if (this.pillarsQualified()) {
       return null;
     }
-    return 'Complete HTF context, auction type, all four pillars, and confirm retest to unlock execution.';
+    return 'Complete HTF context, auction type, all four pillars, and confirm retest before recording execution.';
   });
 
   protected readonly canSubmit = computed(() => {
@@ -156,6 +155,28 @@ export class ExecutionBlockComponent {
     });
   }
 
+  ngOnInit(): void {
+    const snapshot = this.draftService.peekExecutionSnapshot();
+    const session = this.sessionState();
+    if (snapshot && session) {
+      this.loadFromDraft(snapshot, session.symbol);
+    }
+  }
+
+  isStepComplete(): boolean {
+    return !this.isLocked() && this.executionForm.valid && isStopPlacementValid(executionFormToDraftValue(this.executionForm));
+  }
+
+  getDraftValue(): ExecutionFormValue {
+    return executionFormToDraftValue(this.executionForm);
+  }
+
+  flushDraftSave(): void {
+    if (this.draftService.activeDraftId() && !this.isLocked()) {
+      this.draftService.scheduleExecutionSave(this.getDraftValue());
+    }
+  }
+
   loadFromDraft(executionForm: ExecutionFormValue, symbol: AssetSymbol): void {
     patchExecutionFormFromDraft(this.executionForm, executionForm, symbol);
     this.formTick.update((n) => n + 1);
@@ -171,7 +192,7 @@ export class ExecutionBlockComponent {
     }
   }
 
-  resetExecutionForm(): void {
+  resetForm(): void {
     const symbol = this.sessionState()?.symbol ?? 'EURUSD';
     this.executionForm.reset({
       ticket: null,
@@ -201,8 +222,7 @@ export class ExecutionBlockComponent {
 
     const exec = executionFormToDraftValue(this.executionForm);
     const auditForm = this.auditDraft();
-    const session = this.sessionState();
-    if (!auditForm || !session || !auditForm.auction_type.day_type) {
+    if (!auditForm?.auction_type.day_type) {
       return;
     }
 
@@ -223,12 +243,8 @@ export class ExecutionBlockComponent {
     auditForm: GatekeeperFormValue,
   ): Promise<void> {
     const session = this.sessionState();
-    if (!session) {
-      return;
-    }
-
     const dayType = auditForm.auction_type.day_type;
-    if (!dayType) {
+    if (!session || !dayType) {
       return;
     }
 
@@ -270,11 +286,11 @@ export class ExecutionBlockComponent {
 
       this.tradeSubmitted.emit(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Submit failed';
       this.messageService.add({
         severity: 'error',
         summary: 'Execution blocked',
-        detail: message,
+        detail: err instanceof Error ? err.message : 'Submit failed',
+        life: 6000,
       });
     } finally {
       this.submitting.set(false);

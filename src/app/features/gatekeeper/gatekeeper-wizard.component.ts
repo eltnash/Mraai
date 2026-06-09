@@ -4,8 +4,10 @@ import {
   Component,
   computed,
   inject,
+  input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -43,6 +45,9 @@ import {
 } from './auction-playbook.utils';
 import { createGatekeeperForm, syncGatekeeperFormValidators } from './gatekeeper-form.factory';
 import type { ExecutionPillarStepKey, GatekeeperFormValue, GatekeeperStepKey } from './gatekeeper-form.types';
+import type { ExecutionFormValue, GatekeeperSubmitResult } from './execution-block.types';
+import { isStopPlacementValid } from './execution-risk.utils';
+import type { TradingSessionState } from './trading-session.types';
 import { GatekeeperDraftService } from './gatekeeper-draft.service';
 import type { GatekeeperDraftLoadResult, GatekeeperDraftMedia } from './gatekeeper-draft.types';
 import { GatekeeperScreenshotDraftService } from './gatekeeper-screenshot-draft.service';
@@ -55,10 +60,11 @@ import {
 import { PillarStepPanelComponent } from './pillar-step-panel/pillar-step-panel.component';
 import { pillarFocusLabel } from './pillar-context.utils';
 import { HtfNarrativePanelComponent } from './htf-narrative-panel/htf-narrative-panel.component';
+import { ExecutionStepPanelComponent } from './execution-step-panel/execution-step-panel.component';
 import { TimeframeJournalPanelComponent } from './timeframe-journal-panel.component';
 
 interface WizardStepMeta {
-  key: GatekeeperStepKey;
+  key: GatekeeperStepKey | 'execution';
   number: number;
   title: string;
   methodology: string;
@@ -81,6 +87,7 @@ const WIZARD_UNLOCK_ALL_STEPS = true;
     TimeframeJournalPanelComponent,
     HtfNarrativePanelComponent,
     PillarStepPanelComponent,
+    ExecutionStepPanelComponent,
     EnumPillSelectComponent,
     CheckboxModule,
     InputNumberModule,
@@ -99,6 +106,9 @@ export class GatekeeperWizardComponent {
   private readonly screenshotDrafts = inject(GatekeeperScreenshotDraftService);
   private readonly draftService = inject(GatekeeperDraftService);
   private readonly messageService = inject(MessageService);
+  private readonly executionPanelRef = viewChild(ExecutionStepPanelComponent);
+
+  readonly sessionState = input<TradingSessionState | null>(null);
 
   readonly pillarsChange = output<{
     pillarSteps: PillarStepState[];
@@ -106,6 +116,8 @@ export class GatekeeperWizardComponent {
     isRetest: boolean;
     formValue: GatekeeperFormValue | null;
   }>();
+
+  readonly tradeSubmitted = output<GatekeeperSubmitResult>();
 
   protected readonly form = createGatekeeperForm(this.fb);
   protected readonly activeStep = signal(1);
@@ -168,6 +180,13 @@ export class GatekeeperWizardComponent {
       title: 'Invalidation',
       methodology:
         'Where is the thesis objectively dead? Fade setups fail on acceptance beyond the edge; trend setups fail on acceptance back inside prior value.',
+    },
+    {
+      key: 'execution',
+      number: 7,
+      title: 'Execution',
+      methodology:
+        'Record your platform trade details (MT5-style). Ticket, entry, exit, costs, and profit — saved as part of this journal.',
     },
   ];
 
@@ -338,6 +357,10 @@ export class GatekeeperWizardComponent {
   }
 
   protected isStepLocked(stepNumber: number): boolean {
+    if (stepNumber === 7) {
+      return !this.pillarsQualified();
+    }
+
     if (WIZARD_UNLOCK_ALL_STEPS || stepNumber <= 1) {
       return false;
     }
@@ -351,7 +374,19 @@ export class GatekeeperWizardComponent {
     return !this.isStepValid(priorStep.key);
   }
 
-  protected isStepValid(key: GatekeeperStepKey): boolean {
+  protected isStepValid(key: GatekeeperStepKey | 'execution'): boolean {
+    if (key === 'execution') {
+      if (!this.pillarsQualified()) {
+        return false;
+      }
+      const panel = this.executionPanelRef();
+      if (panel) {
+        return panel.isStepComplete();
+      }
+      const snapshot = this.draftService.peekExecutionSnapshot();
+      return snapshot != null && this.isExecutionDraftComplete(snapshot);
+    }
+
     if (key === 'context') {
       const selected = this.selectedTimeframes();
       return (
@@ -429,7 +464,7 @@ export class GatekeeperWizardComponent {
   protected goToStep(stepNumber: number): void {
     if (this.isStepLocked(stepNumber)) {
       const priorStep = this.steps.find((step) => step.number === stepNumber - 1);
-      if (priorStep) {
+      if (priorStep && priorStep.key !== 'execution') {
         this.stepGroup(priorStep.key).markAllAsTouched();
       }
       this.cdr.markForCheck();
@@ -445,6 +480,8 @@ export class GatekeeperWizardComponent {
     this.cdr.markForCheck();
 
     try {
+      this.executionPanelRef()?.flushDraftSave();
+
       await this.draftService.saveNow(this.form.getRawValue() as GatekeeperFormValue, {
         active_step: this.activeStep(),
         active_timeframe_tab: this.activeTimeframeTab(),
@@ -476,6 +513,10 @@ export class GatekeeperWizardComponent {
 
   protected async goNext(): Promise<void> {
     const key = this.currentStep().key;
+    if (key === 'execution') {
+      return;
+    }
+
     this.stepGroup(key).markAllAsTouched();
     if (key === 'context') {
       this.selectedTimeframes().forEach((tf) => {
@@ -512,6 +553,7 @@ export class GatekeeperWizardComponent {
   resetWizard(): void {
     this.form.reset();
     this.screenshotDrafts.clearAll();
+    this.executionPanelRef()?.resetForm();
     this.activeStep.set(1);
     this.activeTimeframeTab.set('W');
     this.emitState();
@@ -595,6 +637,23 @@ export class GatekeeperWizardComponent {
     if (!selected.includes(this.activeTimeframeTab())) {
       this.activeTimeframeTab.set(selected[0]);
     }
+  }
+
+  protected qualifiedAuditDraft = computed((): GatekeeperFormValue | null => {
+    return this.pillarsQualified() ? (this.form.getRawValue() as GatekeeperFormValue) : null;
+  });
+
+  protected onTradeSubmitted(result: GatekeeperSubmitResult): void {
+    this.tradeSubmitted.emit(result);
+  }
+
+  private isExecutionDraftComplete(snapshot: ExecutionFormValue): boolean {
+    return (
+      snapshot.volume != null &&
+      snapshot.entry_price != null &&
+      snapshot.stop_price != null &&
+      isStopPlacementValid(snapshot)
+    );
   }
 
   private emitState(): void {

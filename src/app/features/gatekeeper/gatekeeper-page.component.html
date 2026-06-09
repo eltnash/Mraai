@@ -2,7 +2,7 @@
   <div class="gk-header__intro">
     <h1 class="gk-header__title">Gatekeeper</h1>
     <p class="gk-header__subtitle">
-      HTF context → 15m execution — Location, Behavior, Confirmation, Invalidation
+      HTF context through execution — seven steps, one journal per trade
     </p>
   </div>
 </header>
@@ -28,7 +28,12 @@
 
 <div class="gk-layout">
   <section class="gk-layout__wizard">
-    <app-gatekeeper-wizard #wizard (pillarsChange)="onPillarsChange($event)" />
+    <app-gatekeeper-wizard
+      #wizard
+      [sessionState]="sessionState()"
+      (pillarsChange)="onPillarsChange($event)"
+      (tradeSubmitted)="onTradeSubmitted($event)"
+    />
   </section>
 
   <aside class="gk-layout__rail">
@@ -36,15 +41,6 @@
       [compact]="true"
       [pillarSteps]="pillarSteps()"
       [isRetest]="isRetest()"
-    />
-
-    <app-execution-block
-      #execution
-      [pillarsQualified]="pillarsQualified()"
-      [readinessPct]="readinessPct()"
-      [auditDraft]="qualifiedFormValue()"
-      [sessionState]="sessionState()"
-      (tradeSubmitted)="onTradeSubmitted($event)"
     />
   </aside>
 </div>

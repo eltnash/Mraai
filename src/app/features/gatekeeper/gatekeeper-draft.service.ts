@@ -283,6 +283,10 @@ export class GatekeeperDraftService {
     await this.removeDraftWithMedia(draftId, user.id);
   }
 
+  peekExecutionSnapshot(): ExecutionFormValue | null {
+    return this.lastExecutionSnapshot;
+  }
+
   scheduleSave(form: GatekeeperFormValue, uiState: GatekeeperDraftUiState): void {
     if (!this.draftId()) {
       return;

@@ -59,10 +59,18 @@
   }
 }
 
-@media (min-width: 1280px) {
+@media (max-width: 1280px) {
+  .gk-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1281px) {
   .gk-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) 280px;
     gap: 1.5rem;
     align-items: start;
   }

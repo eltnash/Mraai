@@ -16,7 +16,6 @@ import {
   readinessPctFromCompleted,
   type PillarStepState,
 } from '../../shared/components/readiness-meter/readiness-meter.types';
-import { ExecutionBlockComponent } from './execution-block.component';
 import { GatekeeperDraftService } from './gatekeeper-draft.service';
 import { GatekeeperWizardComponent } from './gatekeeper-wizard.component';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
@@ -30,7 +29,6 @@ import { TradingSessionBarComponent } from './trading-session-bar.component';
     TradingSessionBarComponent,
     GatekeeperWizardComponent,
     ReadinessMeterComponent,
-    ExecutionBlockComponent,
     MessageModule,
     ToastModule,
   ],
@@ -46,7 +44,6 @@ export class GatekeeperPageComponent implements AfterViewInit {
   private readonly router = inject(Router);
   private readonly sessionBarRef = viewChild(TradingSessionBarComponent);
   private readonly wizardRef = viewChild(GatekeeperWizardComponent);
-  private readonly executionRef = viewChild(ExecutionBlockComponent);
 
   private sessionLoadToken = 0;
   private pendingSession: TradingSessionState | null = null;
@@ -114,7 +111,6 @@ export class GatekeeperPageComponent implements AfterViewInit {
     await this.draftService.deleteActiveDraft();
     this.wizardRef()?.resetWizard();
     this.sessionBarRef()?.resetForNewJournal();
-    this.executionRef()?.resetExecutionForm();
     this.pillarSteps.set([]);
     this.pillarsQualified.set(false);
     this.readinessPct.set(0);
@@ -146,7 +142,6 @@ export class GatekeeperPageComponent implements AfterViewInit {
       if (wizard) {
         await wizard.loadFromDraft(result);
       }
-      this.executionRef()?.loadFromDraft(result.executionForm, result.symbol);
 
       this.messageService.add({
         severity: 'info',
@@ -190,7 +185,6 @@ export class GatekeeperPageComponent implements AfterViewInit {
       if (result.restored) {
         sessionBar?.applyLoadedDraft(result);
         await wizard.loadFromDraft(result);
-        this.executionRef()?.loadFromDraft(result.executionForm, result.symbol);
         this.messageService.add({
           severity: 'info',
           summary: 'Journal restored',
@@ -200,7 +194,6 @@ export class GatekeeperPageComponent implements AfterViewInit {
       } else {
         sessionBar?.applyLoadedDraft(result);
         await wizard.loadFromDraft(result);
-        this.executionRef()?.loadFromDraft(result.executionForm, result.symbol);
       }
     } catch (err) {
       if (token !== this.sessionLoadToken) {

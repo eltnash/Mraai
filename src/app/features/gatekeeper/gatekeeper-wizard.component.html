@@ -30,7 +30,8 @@
   }
 
   <div class="gatekeeper-form__step-body">
-    @switch (activeStep()) {
+    @if (activeStep() !== 7) {
+      @switch (activeStep()) {
       @case (1) {
         <section class="gatekeeper-form__panel" formGroupName="context">
           <p-message
@@ -344,6 +345,17 @@
           }
         </section>
       }
+      }
+    } @else {
+      <div class="gatekeeper-form__panel">
+        <app-execution-step-panel
+          [sessionState]="sessionState()"
+          [pillarsQualified]="pillarsQualified()"
+          [readinessPct]="readinessPct()"
+          [auditDraft]="qualifiedAuditDraft()"
+          (tradeSubmitted)="onTradeSubmitted($event)"
+        />
+      </div>
     }
   </div>
 
