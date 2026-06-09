@@ -27,6 +27,7 @@ import {
   JOURNAL_NAME_MAX_LENGTH,
   type GatekeeperJournalSummary,
 } from '../gatekeeper/gatekeeper-draft.types';
+import { JournalStepProgressComponent } from './journal-step-progress.component';
 
 @Component({
   selector: 'app-journal-page',
@@ -41,6 +42,7 @@ import {
     ProgressSpinnerModule,
     TagModule,
     ToastModule,
+    JournalStepProgressComponent,
   ],
   templateUrl: './journal-page.component.html',
   styleUrl: './journal-page.component.scss',

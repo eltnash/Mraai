@@ -7,6 +7,7 @@ import type {
 } from '../../core/models/database.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 import type { ExecutionFormValue } from './execution-block.types';
+import type { GatekeeperStepProgress } from './gatekeeper-step-progress.utils';
 
 export type GatekeeperDraftSaveStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
@@ -55,6 +56,7 @@ export interface GatekeeperJournalSummary {
   market_session: string;
   analysis_period: string;
   active_step: number;
+  step_progress: GatekeeperStepProgress;
   updated_at: string;
   archived_at: string | null;
 }

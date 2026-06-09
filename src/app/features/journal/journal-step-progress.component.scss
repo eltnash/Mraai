@@ -1,0 +1,232 @@
+.journal-progress {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.journal-progress__summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.journal-progress__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #d1d5db;
+}
+
+.journal-progress__pct {
+  font-size: 0.6875rem;
+  color: #6b7280;
+}
+
+:host ::ng-deep .journal-progress__bar {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #1f2937;
+
+  .p-progressbar-value {
+    border-radius: 999px;
+    background: linear-gradient(90deg, #16a34a, #4ade80);
+  }
+}
+
+.journal-progress__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.journal-progress__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #9ca3af;
+
+  &::before {
+    content: '';
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 0.2rem;
+  }
+
+  &--done::before {
+    background: #22c55e;
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.45);
+  }
+
+  &--active::before {
+    background: #0f172a;
+    border: 2px solid #f59e0b;
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35);
+  }
+
+  &--todo::before {
+    background: #111827;
+    border: 1px dashed #4b5563;
+  }
+}
+
+.journal-progress__steps {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-progress__step {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: center;
+  min-width: 0;
+  min-height: 3.1rem;
+  padding: 0.4rem 0.2rem 0.35rem;
+  border-radius: 0.5rem;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.journal-progress__step-head {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.journal-progress__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.journal-progress__step-check {
+  position: absolute;
+  top: -0.15rem;
+  right: -0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #052e16;
+  background: #4ade80;
+  color: #052e16;
+  font-size: 0.4375rem;
+  line-height: 1;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.journal-progress__step-label {
+  display: none;
+  width: 100%;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-progress__step--done {
+  border: 1px solid #22c55e;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.28), rgba(22, 163, 74, 0.16));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  .journal-progress__step-num {
+    background: rgba(34, 197, 94, 0.35);
+    color: #dcfce7;
+  }
+
+  .journal-progress__step-label {
+    color: #bbf7d0;
+  }
+}
+
+.journal-progress__step--active {
+  border: 2px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  .journal-progress__step-num {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fde68a;
+  }
+
+  .journal-progress__step-label {
+    color: #fde68a;
+  }
+}
+
+.journal-progress__step--active.journal-progress__step--done {
+  border-color: #4ade80;
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.32), rgba(34, 197, 94, 0.18));
+  box-shadow:
+    0 0 0 2px rgba(245, 158, 11, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  .journal-progress__step-num {
+    background: rgba(34, 197, 94, 0.45);
+    color: #ecfdf5;
+  }
+
+  .journal-progress__step-label {
+    color: #dcfce7;
+  }
+}
+
+.journal-progress__step--todo {
+  border: 1px dashed #4b5563;
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0.82;
+
+  .journal-progress__step-num {
+    background: rgba(55, 65, 81, 0.55);
+    color: #9ca3af;
+  }
+
+  .journal-progress__step-label {
+    color: #6b7280;
+  }
+}
+
+@media (min-width: 720px) {
+  .journal-progress__step-label {
+    display: block;
+  }
+}
+
+@media (max-width: 719px) {
+  .journal-progress__steps {
+    gap: 0.2rem;
+  }
+
+  .journal-progress__step {
+    min-height: 2.35rem;
+    padding-inline: 0.05rem;
+  }
+
+  .journal-progress__legend {
+    gap: 0.5rem;
+  }
+}

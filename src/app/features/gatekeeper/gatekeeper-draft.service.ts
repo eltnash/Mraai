@@ -18,6 +18,7 @@ import {
   normalizeGatekeeperFormValue,
   screenshotRefsForScope,
 } from './gatekeeper-draft.mapper';
+import { computeGatekeeperStepProgress } from './gatekeeper-step-progress.utils';
 import type {
   GatekeeperDraftLoadResult,
   GatekeeperDraftMedia,
@@ -192,7 +193,9 @@ export class GatekeeperDraftService {
 
     let query = this.supabase.client
       .from('gatekeeper_drafts')
-      .select('id, journal_name, trading_date, symbol, session_context, ui_state, updated_at, archived_at')
+      .select(
+        'id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, execution_form, updated_at, archived_at',
+      )
       .eq('user_id', user.id);
 
     if (options?.archivedOnly) {
@@ -210,6 +213,14 @@ export class GatekeeperDraftService {
     return (data ?? []).map((row) => {
       const context = row.session_context as TradingSessionState['session'];
       const uiState = row.ui_state as GatekeeperDraftUiState | null;
+      const wizardForm = normalizeGatekeeperFormValue(row.wizard_form);
+      const media = normalizeDraftMedia(row.media);
+      const executionForm = normalizeExecutionFormValue(
+        row.execution_form,
+        row.symbol as AssetSymbol,
+      );
+      const activeStep = uiState?.active_step ?? 1;
+
       return {
         id: row.id,
         journal_name: row.journal_name,
@@ -217,7 +228,14 @@ export class GatekeeperDraftService {
         symbol: row.symbol as AssetSymbol,
         market_session: context.market_session,
         analysis_period: context.analysis_period,
-        active_step: uiState?.active_step ?? 1,
+        active_step: activeStep,
+        step_progress: computeGatekeeperStepProgress({
+          wizardForm,
+          media,
+          executionForm,
+          symbol: row.symbol as AssetSymbol,
+          activeStep,
+        }),
         updated_at: row.updated_at,
         archived_at: row.archived_at ?? null,
       };

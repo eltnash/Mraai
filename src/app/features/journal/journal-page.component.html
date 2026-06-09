@@ -100,7 +100,7 @@
   <ul class="journal-list">
     @for (journal of journals(); track journal.id) {
       <li class="journal-card" [class.journal-card--archived]="isArchived(journal)">
-        <div class="journal-card__main">
+        <div class="journal-card__body">
           <div class="journal-card__title-row">
             <h2 class="journal-card__title">{{ journal.journal_name }}</h2>
             @if (isArchived(journal)) {
@@ -113,9 +113,10 @@
             · {{ journal.market_session }}
             · {{ journal.analysis_period }}
           </p>
+          <app-journal-step-progress [progress]="journal.step_progress" />
           <div class="journal-card__tags">
             <p-tag
-              [value]="'Step ' + journal.active_step + ': ' + stepLabel(journal.active_step)"
+              [value]="'Current: Step ' + journal.active_step + ' · ' + stepLabel(journal.active_step)"
               severity="info"
             />
             <span class="journal-card__updated">
@@ -123,7 +124,8 @@
             </span>
           </div>
         </div>
-        <div class="journal-card__actions">
+
+        <footer class="journal-card__footer" aria-label="Journal actions">
           @if (isArchived(journal)) {
             <p-button
               type="button"
@@ -142,36 +144,41 @@
               (onClick)="resumeJournal(journal)"
             />
           }
+
           <p-button
             type="button"
             label="Rename"
             icon="pi pi-pencil"
             severity="secondary"
-            [text]="true"
+            [outlined]="true"
             [disabled]="actionBusyId() === journal.id"
             (onClick)="openRenameDialog(journal)"
           />
+
           @if (!isArchived(journal)) {
             <p-button
               type="button"
               label="Archive"
               icon="pi pi-inbox"
               severity="secondary"
-              [text]="true"
+              [outlined]="true"
               [disabled]="actionBusyId() === journal.id"
               (onClick)="confirmArchive(journal)"
             />
           }
+
+          <span class="journal-card__footer-spacer" aria-hidden="true"></span>
+
           <p-button
             type="button"
             label="Delete"
             icon="pi pi-trash"
             severity="danger"
-            [text]="true"
+            [outlined]="true"
             [disabled]="actionBusyId() === journal.id"
             (onClick)="confirmDelete(journal)"
           />
-        </div>
+        </footer>
       </li>
     }
   </ul>
