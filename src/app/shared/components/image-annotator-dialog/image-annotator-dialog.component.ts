@@ -3,11 +3,13 @@ import {
   Component,
   ElementRef,
   HostListener,
+  inject,
   input,
   output,
   signal,
   viewChild,
   viewChildren,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 
@@ -39,6 +41,8 @@ interface TextDragState {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageAnnotatorDialogComponent {
+  private readonly cdr = inject(ChangeDetectorRef);
+
   readonly imageUrl = input.required<string>();
   readonly title = input('Chart screenshot');
   readonly saved = output<File>();
@@ -51,6 +55,7 @@ export class ImageAnnotatorDialogComponent {
   protected readonly translateY = signal(0);
   protected readonly textStamps = signal<TextStamp[]>([]);
   protected readonly selectedTextId = signal<string | null>(null);
+  protected readonly saveError = signal<string | null>(null);
 
   protected readonly toolOptions = [
     { label: 'Pan', value: 'pan' as const, icon: 'pi pi-arrows-alt' },
@@ -156,9 +161,12 @@ export class ImageAnnotatorDialogComponent {
   }
 
   protected save(): void {
+    this.saveError.set(null);
     const img = this.imageRef()?.nativeElement;
     const canvas = this.canvasRef()?.nativeElement;
     if (!img || !canvas || !this.naturalWidth || !this.naturalHeight) {
+      this.saveError.set('Image is still loading. Wait a moment and try again.');
+      this.cdr.markForCheck();
       return;
     }
 
@@ -167,11 +175,19 @@ export class ImageAnnotatorDialogComponent {
     exportCanvas.height = this.naturalHeight;
     const ctx = exportCanvas.getContext('2d');
     if (!ctx) {
+      this.saveError.set('Could not prepare export canvas.');
+      this.cdr.markForCheck();
       return;
     }
 
-    ctx.drawImage(img, 0, 0, this.naturalWidth, this.naturalHeight);
-    ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, this.naturalWidth, this.naturalHeight);
+    try {
+      ctx.drawImage(img, 0, 0, this.naturalWidth, this.naturalHeight);
+      ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, this.naturalWidth, this.naturalHeight);
+    } catch {
+      this.saveError.set('Could not read the screenshot for export. Try re-uploading the image.');
+      this.cdr.markForCheck();
+      return;
+    }
 
     const scaleX = this.naturalWidth / canvas.width;
     const scaleY = this.naturalHeight / canvas.height;
@@ -190,6 +206,8 @@ export class ImageAnnotatorDialogComponent {
 
     exportCanvas.toBlob((blob) => {
       if (!blob) {
+        this.saveError.set('Could not export annotation. Try re-uploading the screenshot.');
+        this.cdr.markForCheck();
         return;
       }
       const file = new File([blob], `annotated-${Date.now()}.png`, { type: 'image/png' });

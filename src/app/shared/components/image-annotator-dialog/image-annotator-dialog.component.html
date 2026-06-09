@@ -42,11 +42,23 @@
 
       <div class="annotator__edit-actions">
         @if (selectedTextId()) {
-          <p-button type="button" label="Delete text" icon="pi pi-trash" [text]="true" severity="danger" (onClick)="deleteSelectedText()" />
+          <button type="button" class="annotator__action annotator__action--danger" (click)="deleteSelectedText()">
+            <i class="pi pi-trash"></i>
+            Delete text
+          </button>
         }
-        <p-button type="button" label="Undo" icon="pi pi-undo" [text]="true" (onClick)="undo()" />
-        <p-button type="button" label="Clear" icon="pi pi-trash" [text]="true" severity="secondary" (onClick)="clearAll()" />
-        <p-button type="button" label="Save" icon="pi pi-check" (onClick)="save()" />
+        <button type="button" class="annotator__action" (click)="undo()">
+          <i class="pi pi-undo"></i>
+          Undo
+        </button>
+        <button type="button" class="annotator__action" (click)="clearAll()">
+          <i class="pi pi-trash"></i>
+          Clear
+        </button>
+        <button type="button" class="annotator__action annotator__action--primary" (click)="save()">
+          <i class="pi pi-check"></i>
+          Save
+        </button>
       </div>
     </div>
 
@@ -65,7 +77,15 @@
       (pointercancel)="onPointerUp($event)"
     >
       <div class="annotator__stage" [style.transform]="stageTransform()">
-        <img #image class="annotator__image" [src]="imageUrl()" [alt]="title()" (load)="onImageLoad()" draggable="false" />
+        <img
+          #image
+          class="annotator__image"
+          [src]="imageUrl()"
+          [alt]="title()"
+          crossorigin="anonymous"
+          (load)="onImageLoad()"
+          draggable="false"
+        />
         <canvas #canvas class="annotator__canvas"></canvas>
         <div class="annotator__text-layer">
           @for (stamp of textStamps(); track stamp.id) {
@@ -92,6 +112,9 @@
     </div>
 
     <p class="annotator__hint">
+      @if (saveError()) {
+        <span class="annotator__hint-error">{{ saveError() }}</span>
+      } @else {
       @switch (tool()) {
         @case ('select') {
           Select text labels to move them · double-click to edit · Backspace/Delete removes selected or empty placeholders
@@ -108,6 +131,7 @@
         @default {
           Draw on the chart · Eraser removes strokes · Select moves text labels
         }
+      }
       }
     </p>
   </div>
