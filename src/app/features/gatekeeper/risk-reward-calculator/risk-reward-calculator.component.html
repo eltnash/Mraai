@@ -99,14 +99,20 @@
     }
 
     <dl class="rr-calculator__results">
+      <p class="rr-calculator__results-note">
+        Per-lot rows assume <strong>1.0 lot</strong>. Total risk/reward = per-lot × your size ({{
+          volume() ?? 0
+        }}
+        lots).
+      </p>
       <div>
         <dt>Stop distance</dt>
         <dd class="data-mono">
-          {{ result.stopDistancePts }} · {{ result.stop_unit_count }} {{ result.unit_label }}
+          {{ result.stopDistancePts }} price · {{ result.stop_unit_count }} {{ result.unit_label }}
         </dd>
       </div>
       <div>
-        <dt>Risk / unit</dt>
+        <dt>Risk at 1.0 lot</dt>
         <dd class="data-mono">{{ formatUsd(result.risk_per_contract) }}</dd>
       </div>
       <div class="rr-calculator__results-total">
@@ -117,11 +123,11 @@
         <div>
           <dt>Target distance</dt>
           <dd class="data-mono">
-            {{ result.rewardDistancePts }} · {{ result.reward_unit_count }} {{ result.unit_label }}
+            {{ result.rewardDistancePts }} price · {{ result.reward_unit_count }} {{ result.unit_label }}
           </dd>
         </div>
         <div>
-          <dt>Reward / unit</dt>
+          <dt>Reward at 1.0 lot</dt>
           <dd class="data-mono">{{ formatUsd(result.reward_per_contract) }}</dd>
         </div>
         <div class="rr-calculator__results-total">

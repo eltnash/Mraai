@@ -81,6 +81,18 @@
     }
   }
 
+  &__results-note {
+    margin: 0 0 0.25rem;
+    font-size: 0.6875rem;
+    line-height: 1.45;
+    color: #9ca3af;
+
+    strong {
+      color: #d1d5db;
+      font-weight: 600;
+    }
+  }
+
   &__results-total dd {
     color: #fbbf24;
   }

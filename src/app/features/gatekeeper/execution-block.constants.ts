@@ -31,8 +31,8 @@ export const SYMBOL_RISK_CALIBRATION: Record<AssetSymbol, SymbolRiskCalibration>
   EURGBP: { tickSize: 0.0001, priceDecimals: 5, dollarPerTick: 10, unitLabel: 'pips' },
   EURJPY: { tickSize: 0.01, priceDecimals: 3, dollarPerTick: 9, unitLabel: 'pips' },
   GBPJPY: { tickSize: 0.01, priceDecimals: 3, dollarPerTick: 9, unitLabel: 'pips' },
-  XAUUSD: { tickSize: 0.01, priceDecimals: 2, dollarPerTick: 1, unitLabel: 'pips' },
-  XAGUSD: { tickSize: 0.001, priceDecimals: 3, dollarPerTick: 5, unitLabel: 'pips' },
+  XAUUSD: { tickSize: 0.01, priceDecimals: 2, dollarPerTick: 1, unitLabel: 'ticks (0.01)' },
+  XAGUSD: { tickSize: 0.001, priceDecimals: 3, dollarPerTick: 5, unitLabel: 'ticks (0.001)' },
 };
 
 /** @deprecated Use SYMBOL_RISK_CALIBRATION — kept for legacy references. */
