@@ -48,6 +48,9 @@ export class GatekeeperPageComponent implements AfterViewInit {
   private sessionLoadToken = 0;
   private pendingSession: TradingSessionState | null = null;
   private resumeJournalId: string | null = null;
+  /** Prevents re-init / toast spam when session bar re-emits after draft hydrate. */
+  private sessionDraftLoadKey: string | null = null;
+  private sessionRestoreToastDraftId: string | null = null;
 
   protected readonly pillarSteps = signal<PillarStepState[]>([]);
   protected readonly pillarsQualified = signal(false);
@@ -80,6 +83,8 @@ export class GatekeeperPageComponent implements AfterViewInit {
 
     if (!event.valid || !event.state) {
       this.sessionLoadToken += 1;
+      this.sessionDraftLoadKey = null;
+      this.sessionRestoreToastDraftId = null;
       if (!this.resumeJournalId) {
         this.draftService.clearActive();
         this.wizardRef()?.resetWizard();
@@ -117,6 +122,8 @@ export class GatekeeperPageComponent implements AfterViewInit {
     this.qualifiedFormValue.set(null);
     this.isRetest.set(false);
     this.resumeJournalId = null;
+    this.sessionDraftLoadKey = null;
+    this.sessionRestoreToastDraftId = null;
     void this.router.navigate(['/gatekeeper']);
   }
 
@@ -143,6 +150,9 @@ export class GatekeeperPageComponent implements AfterViewInit {
         await wizard.loadFromDraft(result);
       }
 
+      this.sessionDraftLoadKey = result.journalName.trim();
+      this.sessionRestoreToastDraftId = result.draftId;
+
       this.messageService.add({
         severity: 'info',
         summary: 'Journal opened',
@@ -166,6 +176,11 @@ export class GatekeeperPageComponent implements AfterViewInit {
   }
 
   private async restoreDraftForSession(state: TradingSessionState): Promise<void> {
+    const loadKey = state.journalName.trim();
+    if (this.sessionDraftLoadKey === loadKey && this.draftService.activeDraftId()) {
+      return;
+    }
+
     const token = ++this.sessionLoadToken;
 
     try {
@@ -174,7 +189,6 @@ export class GatekeeperPageComponent implements AfterViewInit {
         return;
       }
 
-      const sessionBar = this.sessionBarRef();
       const wizard = this.wizardRef();
 
       if (!wizard) {
@@ -182,18 +196,17 @@ export class GatekeeperPageComponent implements AfterViewInit {
         return;
       }
 
-      if (result.restored) {
-        sessionBar?.applyLoadedDraft(result);
-        await wizard.loadFromDraft(result);
+      this.sessionDraftLoadKey = loadKey;
+      await wizard.loadFromDraft(result);
+
+      if (result.restored && this.sessionRestoreToastDraftId !== result.draftId) {
+        this.sessionRestoreToastDraftId = result.draftId;
         this.messageService.add({
           severity: 'info',
           summary: 'Journal restored',
           detail: `"${result.journalName}" resumed at step ${result.uiState.active_step}.`,
           life: 4000,
         });
-      } else {
-        sessionBar?.applyLoadedDraft(result);
-        await wizard.loadFromDraft(result);
       }
     } catch (err) {
       if (token !== this.sessionLoadToken) {
