@@ -135,7 +135,7 @@ export class GatekeeperDraftService {
     const journalName = sessionState.journalName.trim();
     const { data: existing, error: fetchError } = await client
       .from('gatekeeper_drafts')
-      .select(DRAFT_SELECT + ', archived_at')
+      .select('id')
       .eq('user_id', user.id)
       .eq('journal_name', journalName)
       .maybeSingle();
@@ -147,11 +147,10 @@ export class GatekeeperDraftService {
     }
 
     if (existing) {
-      const row = existing as unknown as GatekeeperDraftRow & { archived_at: string | null };
-      if (row.archived_at) {
-        await this.setArchivedAt(row.id, null);
-      }
-      return this.applyLoadedDraft(row, true);
+      this.saveStatus.set('error');
+      throw new Error(
+        'A journal with this name already exists. Resume it from the Journal page or choose a different name.',
+      );
     }
 
     const session = sessionState.session;
