@@ -4,9 +4,14 @@ import { Subject, debounceTime } from 'rxjs';
 import type {
   AnalyzedTimeframe,
   AssetSymbol,
+  HtfContextSnapshot,
+  PillarJournalsSnapshot,
   PillarStepKey,
   TimeframeScreenshotRef,
+  TradeDirection,
 } from '../../core/models/database.types';
+import { AccountRiskService } from '../../core/accounts/account-risk.service';
+import { TradingAccountService } from '../../core/accounts/trading-account.service';
 import { GatekeeperMediaService } from '../../core/supabase/gatekeeper-media.service';
 import { SupabaseService } from '../../core/supabase/supabase.service';
 import {
@@ -31,12 +36,14 @@ import type {
 import {
   DEFAULT_DRAFT_UI_STATE,
   EMPTY_DRAFT_MEDIA,
+  JOURNAL_NAME_MAX_LENGTH,
   normalizeJournalName,
   validateJournalName,
 } from './gatekeeper-draft.types';
 import type { ExecutionFormValue } from './execution-block.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 import type { JournalScreenshotScope } from './gatekeeper-screenshot-draft.service';
+import { PILLAR_STEP_KEYS } from './pillar-context.utils';
 import type { TradingSessionState } from './trading-session.types';
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -53,8 +60,11 @@ interface PendingWizardSave {
 export class GatekeeperDraftService {
   private readonly supabase = inject(SupabaseService);
   private readonly mediaService = inject(GatekeeperMediaService);
+  private readonly accountService = inject(TradingAccountService);
+  private readonly riskService = inject(AccountRiskService);
 
   private readonly draftId = signal<string | null>(null);
+  private readonly boundAccountId = signal<string | null>(null);
   private readonly boundSession = signal<TradingSessionState | null>(null);
   private initPromise: Promise<GatekeeperDraftLoadResult> | null = null;
   private initPromiseKey: string | null = null;
@@ -70,6 +80,7 @@ export class GatekeeperDraftService {
   readonly status = this.saveStatus.asReadonly();
   readonly error = this.saveError.asReadonly();
   readonly activeDraftId = this.draftId.asReadonly();
+  readonly activeAccountId = this.boundAccountId.asReadonly();
 
   constructor() {
     this.startSaveQueue();
@@ -81,6 +92,18 @@ export class GatekeeperDraftService {
 
   bindSession(sessionState: TradingSessionState | null): void {
     this.boundSession.set(sessionState);
+  }
+
+  bindAccount(accountId: string | null): void {
+    this.boundAccountId.set(accountId);
+  }
+
+  private requireAccountId(): string {
+    const accountId = this.boundAccountId();
+    if (!accountId) {
+      throw new Error('No trading account selected.');
+    }
+    return accountId;
   }
 
   async initById(draftId: string): Promise<GatekeeperDraftLoadResult> {
@@ -97,11 +120,13 @@ export class GatekeeperDraftService {
       throw new Error('Sign in to open saved journals.');
     }
 
+    const accountId = this.requireAccountId();
     const { data, error } = await client
       .from('gatekeeper_drafts')
       .select(DRAFT_SELECT)
       .eq('id', draftId)
       .eq('user_id', user.id)
+      .eq('account_id', accountId)
       .maybeSingle();
 
     if (error) {
@@ -132,11 +157,15 @@ export class GatekeeperDraftService {
       throw new Error('Sign in to save screenshots and drafts to the cloud.');
     }
 
+    const accountId = this.requireAccountId();
+    await this.riskService.assertCanRecord(accountId);
+
     const journalName = sessionState.journalName.trim();
     const { data: existing, error: fetchError } = await client
       .from('gatekeeper_drafts')
       .select('id')
       .eq('user_id', user.id)
+      .eq('account_id', accountId)
       .eq('journal_name', journalName)
       .maybeSingle();
 
@@ -156,6 +185,7 @@ export class GatekeeperDraftService {
     const session = sessionState.session;
     const insertPayload = {
       user_id: user.id,
+      account_id: accountId,
       journal_name: journalName,
       trading_date: session.trading_date,
       symbol: sessionState.symbol,
@@ -190,12 +220,19 @@ export class GatekeeperDraftService {
       return [];
     }
 
+    const accountId = this.requireAccountId();
+
+    if (!options?.archivedOnly) {
+      await this.reconcileOrphanedTradeJournals(user.id, accountId);
+    }
+
     let query = this.supabase.client
       .from('gatekeeper_drafts')
       .select(
-        'id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, execution_form, updated_at, archived_at, submitted_at, completed_at',
+        'id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, execution_form, created_at, updated_at, archived_at, submitted_at, completed_at, recovered_from_trade',
       )
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('account_id', accountId);
 
     if (options?.archivedOnly) {
       query = query.not('archived_at', 'is', null);
@@ -235,12 +272,215 @@ export class GatekeeperDraftService {
           symbol: row.symbol as AssetSymbol,
           activeStep,
         }),
+        created_at: row.created_at ?? row.updated_at,
         updated_at: row.updated_at,
         archived_at: row.archived_at ?? null,
         submitted_at: row.submitted_at ?? null,
         completed_at: row.completed_at ?? null,
+        recovered_from_trade: row.recovered_from_trade === true,
+        auction_strategy: wizardForm.behavior.auction_strategy,
       };
     });
+  }
+
+  /**
+   * Older builds deleted gatekeeper_drafts when execution was saved, leaving trades in the
+   * ledger with no journal row. Re-create minimal draft records so the Journal page can list them.
+   */
+  private async reconcileOrphanedTradeJournals(userId: string, accountId: string): Promise<void> {
+    const client = this.supabase.client;
+
+    const { data: trades, error: tradesError } = await client
+      .from('trades')
+      .select(
+        'id, symbol, direction, trading_date, session_context, opened_at, closed_at, entry_price, stop_price, exit_price, size, commissions, net_profit, notes, updated_at',
+      )
+      .eq('user_id', userId)
+      .eq('account_id', accountId)
+      .in('status', ['OPEN', 'CLOSED']);
+
+    if (tradesError || !trades?.length) {
+      return;
+    }
+
+    const { data: drafts } = await client
+      .from('gatekeeper_drafts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('account_id', accountId);
+
+    const draftIds = new Set((drafts ?? []).map((row) => row.id));
+    const orphans = trades.filter((trade) => !draftIds.has(trade.id));
+
+    for (const trade of orphans) {
+      await this.insertRecoveredDraft(userId, accountId, trade);
+    }
+  }
+
+  private async insertRecoveredDraft(
+    userId: string,
+    accountId: string,
+    trade: {
+      id: string;
+      symbol: string;
+      direction: TradeDirection;
+      trading_date: string;
+      session_context: TradingSessionState['session'];
+      opened_at: string;
+      closed_at: string | null;
+      entry_price: number | null;
+      stop_price: number | null;
+      exit_price: number | null;
+      size: number | null;
+      commissions: number;
+      net_profit: number | null;
+      notes: string | null;
+      updated_at: string;
+    },
+  ): Promise<void> {
+    const journalName = await this.uniqueRecoveredJournalName(
+      userId,
+      accountId,
+      trade.trading_date,
+      trade.symbol,
+      trade.id,
+    );
+    const submittedAt = trade.opened_at;
+    const completedAt = trade.closed_at ?? trade.updated_at;
+
+    const { error } = await this.supabase.client.from('gatekeeper_drafts').insert({
+      id: trade.id,
+      user_id: userId,
+      account_id: accountId,
+      journal_name: journalName,
+      trading_date: trade.trading_date,
+      symbol: trade.symbol,
+      session_context: trade.session_context,
+      wizard_form: defaultGatekeeperFormValue(),
+      media: EMPTY_DRAFT_MEDIA,
+      ui_state: { active_step: 8, active_timeframe_tab: 'W' as AnalyzedTimeframe },
+      execution_form: this.executionFormFromTrade(trade),
+      trade_id: trade.id,
+      submitted_at: submittedAt,
+      completed_at: completedAt,
+      recovered_from_trade: true,
+    });
+
+    if (error && !error.message.includes('duplicate key')) {
+      console.warn('[gatekeeper] Could not recover journal for trade', trade.id, error.message);
+    }
+  }
+
+  private async uniqueRecoveredJournalName(
+    userId: string,
+    accountId: string,
+    tradingDate: string,
+    symbol: string,
+    tradeId: string,
+  ): Promise<string> {
+    const base = `Recovered ${tradingDate} ${symbol}`.slice(0, JOURNAL_NAME_MAX_LENGTH - 9);
+    const suffix = tradeId.slice(0, 8);
+    let candidate = `${base} ${suffix}`.trim();
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data } = await this.supabase.client
+        .from('gatekeeper_drafts')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('account_id', accountId)
+        .eq('journal_name', candidate)
+        .maybeSingle();
+
+      if (!data) {
+        return candidate;
+      }
+
+      candidate = `${base} ${suffix}-${attempt + 1}`.slice(0, JOURNAL_NAME_MAX_LENGTH);
+    }
+
+    return `Recovered ${suffix}`;
+  }
+
+  private executionFormFromTrade(trade: {
+    id: string;
+    symbol: string;
+    direction: TradeDirection;
+    opened_at: string;
+    closed_at: string | null;
+    entry_price: number | null;
+    stop_price: number | null;
+    exit_price: number | null;
+    size: number | null;
+    commissions: number;
+    net_profit: number | null;
+    notes: string | null;
+  }): ExecutionFormValue {
+    const parsed = this.parseTradeNotes(trade.notes);
+    const direction = trade.direction;
+
+    return {
+      ticket: parsed.ticket,
+      symbol: trade.symbol as AssetSymbol,
+      order_type: direction === 'LONG' ? 'Market_Execution_Buy' : 'Market_Execution_Sell',
+      direction,
+      volume: trade.size,
+      entry_time: trade.opened_at,
+      entry_price: trade.entry_price,
+      stop_price: trade.stop_price,
+      take_profit_price: null,
+      exit_time: trade.closed_at,
+      exit_price: trade.exit_price,
+      commission: trade.commissions,
+      fee: parsed.fee,
+      swap: parsed.swap,
+      profit: trade.net_profit,
+      comment: parsed.comment,
+    };
+  }
+
+  private parseTradeNotes(notes: string | null): {
+    ticket: string | null;
+    fee: number | null;
+    swap: number | null;
+    comment: string | null;
+  } {
+    if (!notes) {
+      return { ticket: null, fee: null, swap: null, comment: null };
+    }
+
+    const parts = notes.split('|').map((part) => part.trim());
+    let ticket: string | null = null;
+    let fee: number | null = null;
+    let swap: number | null = null;
+    const commentParts: string[] = [];
+
+    for (const part of parts) {
+      if (part.startsWith('Ticket:')) {
+        ticket = part.replace('Ticket:', '').trim() || null;
+      } else if (part.startsWith('Fee:')) {
+        const parsed = Number.parseFloat(part.replace('Fee:', '').trim());
+        if (Number.isFinite(parsed)) {
+          fee = parsed;
+        }
+      } else if (part.startsWith('Swap:')) {
+        const parsed = Number.parseFloat(part.replace('Swap:', '').trim());
+        if (Number.isFinite(parsed)) {
+          swap = parsed;
+        }
+      } else if (
+        !part.startsWith('Type:') &&
+        !part.startsWith('Volume:')
+      ) {
+        commentParts.push(part);
+      }
+    }
+
+    return {
+      ticket,
+      fee,
+      swap,
+      comment: commentParts.length > 0 ? commentParts.join(' | ') : null,
+    };
   }
 
   async renameJournal(draftId: string, newName: string): Promise<string> {
@@ -257,11 +497,13 @@ export class GatekeeperDraftService {
       throw new Error('Sign in to rename journals.');
     }
 
+    const accountId = this.requireAccountId();
     const { data, error } = await this.supabase.client
       .from('gatekeeper_drafts')
       .update({ journal_name: trimmed })
       .eq('id', draftId)
       .eq('user_id', user.id)
+      .eq('account_id', accountId)
       .select('journal_name')
       .maybeSingle();
 
@@ -354,7 +596,71 @@ export class GatekeeperDraftService {
       throw new Error('Sign in to delete journals.');
     }
 
-    await this.removeDraftWithMedia(draftId, user.id);
+    const accountId = this.requireAccountId();
+    const { data: draft, error: draftError } = await this.supabase.client
+      .from('gatekeeper_drafts')
+      .select('id, trade_id, media')
+      .eq('id', draftId)
+      .eq('user_id', user.id)
+      .eq('account_id', accountId)
+      .maybeSingle();
+
+    if (draftError) {
+      throw new Error(this.formatDraftError(draftError));
+    }
+
+    if (!draft) {
+      throw new Error('Journal not found or you do not have access.');
+    }
+
+    const media = normalizeDraftMedia(draft.media);
+    const tradeId = (draft.trade_id as string | null) ?? draftId;
+
+    await this.deleteLinkedTrade(user.id, tradeId, media);
+    await this.removeDraftWithMedia(draftId, user.id, media, { skipStorage: true });
+  }
+
+  /** Ensures a gatekeeper_drafts row exists for a ledger trade (e.g. before opening from Trade History). */
+  async ensureJournalForTrade(tradeId: string): Promise<void> {
+    const {
+      data: { user },
+    } = await this.supabase.client.auth.getUser();
+    if (!user) {
+      throw new Error('Sign in to open journals.');
+    }
+
+    const accountId = this.requireAccountId();
+    const { data: existing } = await this.supabase.client
+      .from('gatekeeper_drafts')
+      .select('id')
+      .eq('id', tradeId)
+      .eq('user_id', user.id)
+      .eq('account_id', accountId)
+      .maybeSingle();
+
+    if (existing) {
+      return;
+    }
+
+    const { data: trade, error: tradeError } = await this.supabase.client
+      .from('trades')
+      .select(
+        'id, symbol, direction, trading_date, session_context, opened_at, closed_at, entry_price, stop_price, exit_price, size, commissions, net_profit, notes, updated_at',
+      )
+      .eq('id', tradeId)
+      .eq('user_id', user.id)
+      .eq('account_id', accountId)
+      .maybeSingle();
+
+    if (tradeError) {
+      throw new Error(tradeError.message);
+    }
+
+    if (!trade) {
+      throw new Error('No journal exists for this trade.');
+    }
+
+    await this.insertRecoveredDraft(user.id, accountId, trade);
   }
 
   peekExecutionSnapshot(): ExecutionFormValue | null {
@@ -549,12 +855,16 @@ export class GatekeeperDraftService {
   }
 
   private buildInitKey(sessionState: TradingSessionState): string {
-    return sessionState.journalName.trim();
+    const accountId = this.boundAccountId() ?? '';
+    return `${accountId}:${sessionState.journalName.trim()}`;
   }
 
   private formatDraftError(err: unknown): string {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes('gatekeeper_drafts_user_journal_name_unique')) {
+    if (
+      message.includes('gatekeeper_drafts_user_journal_name_unique') ||
+      message.includes('gatekeeper_drafts_account_journal_name_unique')
+    ) {
       return 'A journal with this name already exists. Choose a different journal name.';
     }
     if (message.includes('gatekeeper_drafts') || message.toLowerCase().includes('schema cache')) {
@@ -766,11 +1076,13 @@ export class GatekeeperDraftService {
       throw new Error('Sign in to manage journals.');
     }
 
+    const accountId = this.requireAccountId();
     const { data, error } = await this.supabase.client
       .from('gatekeeper_drafts')
       .update({ archived_at: archivedAt })
       .eq('id', draftId)
       .eq('user_id', user.id)
+      .eq('account_id', accountId)
       .select('id')
       .maybeSingle();
 
@@ -787,19 +1099,104 @@ export class GatekeeperDraftService {
     }
   }
 
+  private async deleteLinkedTrade(
+    userId: string,
+    tradeId: string,
+    draftMedia: GatekeeperDraftMedia,
+  ): Promise<void> {
+    const client = this.supabase.client;
+    const accountId = this.boundAccountId();
+
+    let tradeQuery = client.from('trades').select('id').eq('id', tradeId).eq('user_id', userId);
+    if (accountId) {
+      tradeQuery = tradeQuery.eq('account_id', accountId);
+    }
+
+    const { data: trade } = await tradeQuery.maybeSingle();
+
+    if (!trade) {
+      return;
+    }
+
+    const { data: audit } = await client
+      .from('execution_audits')
+      .select('htf_context, pillar_journals')
+      .eq('trade_id', tradeId)
+      .maybeSingle();
+
+    const paths = new Set([
+      ...this.collectMediaStoragePaths(draftMedia),
+      ...this.collectAuditScreenshotPaths(
+        audit?.htf_context as HtfContextSnapshot | null,
+        audit?.pillar_journals as PillarJournalsSnapshot | null,
+      ),
+    ]);
+
+    if (paths.size > 0) {
+      const { error: storageError } = await client.storage
+        .from('trade-screenshots')
+        .remove([...paths]);
+      if (storageError) {
+        throw new Error(storageError.message);
+      }
+    }
+
+    let deleteQuery = client.from('trades').delete().eq('id', tradeId).eq('user_id', userId);
+    if (accountId) {
+      deleteQuery = deleteQuery.eq('account_id', accountId);
+    }
+    const { error: tradeError } = await deleteQuery;
+    if (tradeError) {
+      throw new Error(tradeError.message);
+    }
+
+    if (accountId) {
+      await this.accountService.recalculateBalance(accountId);
+      await this.riskService.evaluate(accountId);
+    }
+  }
+
+  private collectAuditScreenshotPaths(
+    htfContext: HtfContextSnapshot | null | undefined,
+    pillarJournals: PillarJournalsSnapshot | null | undefined,
+  ): string[] {
+    const paths: string[] = [];
+
+    for (const entry of htfContext?.timeframe_entries ?? []) {
+      for (const shot of entry.screenshots ?? []) {
+        paths.push(shot.storage_path);
+      }
+    }
+
+    if (pillarJournals) {
+      for (const step of PILLAR_STEP_KEYS) {
+        for (const shot of pillarJournals[step]?.screenshots ?? []) {
+          paths.push(shot.storage_path);
+        }
+      }
+    }
+
+    return paths;
+  }
+
   private async removeDraftWithMedia(
     draftId: string,
     userId: string,
     mediaHint?: GatekeeperDraftMedia,
+    options?: { skipStorage?: boolean },
   ): Promise<void> {
     let media = mediaHint;
     if (!media) {
-      const { data, error } = await this.supabase.client
+      const accountId = this.boundAccountId();
+      let draftQuery = this.supabase.client
         .from('gatekeeper_drafts')
         .select('media')
         .eq('id', draftId)
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
+      if (accountId) {
+        draftQuery = draftQuery.eq('account_id', accountId);
+      }
+      const { data, error } = await draftQuery.maybeSingle();
 
       if (error) {
         throw new Error(this.formatDraftError(error.message));
@@ -812,19 +1209,28 @@ export class GatekeeperDraftService {
       media = normalizeDraftMedia(data.media);
     }
 
-    const paths = this.collectMediaStoragePaths(media);
-    if (paths.length > 0) {
-      const { error: storageError } = await this.supabase.client.storage.from('trade-screenshots').remove(paths);
-      if (storageError) {
-        throw new Error(storageError.message);
+    if (!options?.skipStorage) {
+      const paths = this.collectMediaStoragePaths(media);
+      if (paths.length > 0) {
+        const { error: storageError } = await this.supabase.client.storage
+          .from('trade-screenshots')
+          .remove(paths);
+        if (storageError) {
+          throw new Error(storageError.message);
+        }
       }
     }
 
-    const { error: deleteError } = await this.supabase.client
+    const accountId = this.boundAccountId();
+    let deleteDraftQuery = this.supabase.client
       .from('gatekeeper_drafts')
       .delete()
       .eq('id', draftId)
       .eq('user_id', userId);
+    if (accountId) {
+      deleteDraftQuery = deleteDraftQuery.eq('account_id', accountId);
+    }
+    const { error: deleteError } = await deleteDraftQuery;
 
     if (deleteError) {
       throw new Error(this.formatDraftError(deleteError.message));

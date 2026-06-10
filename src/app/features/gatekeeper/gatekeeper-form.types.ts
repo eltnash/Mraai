@@ -1,6 +1,7 @@
 import type {
   AnalyzedTimeframe,
   AuctionLocation,
+  AuctionStrategy,
   CompositeValuePosition,
   ConfirmationTrigger,
   DayType,
@@ -48,6 +49,7 @@ export interface LocationStepValue extends PillarStepFormValue {
 }
 
 export interface BehaviorStepValue extends PillarStepFormValue {
+  auction_strategy: AuctionStrategy | null;
   behavior: MarketBehavior | null;
 }
 

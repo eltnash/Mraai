@@ -1,3 +1,5 @@
+<app-account-risk-banner [accountId]="accountId()" />
+
 <header class="journal-header">
   <div>
     <h1 class="journal-header__title">Journal</h1>
@@ -14,9 +16,53 @@
       [outlined]="true"
       (onClick)="toggleShowArchived()"
     />
-    <p-button type="button" label="New journal" icon="pi pi-plus" (onClick)="startNewJournal()" />
+    <p-button
+      type="button"
+      label="New journal"
+      icon="pi pi-plus"
+      [disabled]="recordingBlocked()"
+      (onClick)="startNewJournal()"
+    />
   </div>
 </header>
+
+@if (!loading() && journals().length > 0) {
+  <div class="journal-toolbar">
+    <div class="journal-toolbar__field">
+      <span class="journal-toolbar__field-label" id="journal-view-label">View</span>
+      <p-selectbutton
+        [options]="viewModeOptions"
+        [ngModel]="viewMode()"
+        (ngModelChange)="onViewModeChange($event)"
+        optionLabel="label"
+        optionValue="value"
+        aria-labelledby="journal-view-label"
+      />
+    </div>
+    <div class="journal-toolbar__field">
+      <span class="journal-toolbar__field-label" id="journal-sort-label">Sort by</span>
+      <div class="journal-toolbar__field-row">
+        <p-select
+          [options]="sortFieldOptions"
+          [ngModel]="sortField()"
+          (ngModelChange)="onSortFieldChange($event)"
+          optionLabel="label"
+          optionValue="value"
+          styleClass="journal-toolbar__select"
+          ariaLabelledBy="journal-sort-label"
+        />
+        <p-button
+          type="button"
+          [label]="sortDirectionLabel()"
+          [icon]="sortDirection() === 'asc' ? 'pi pi-sort-amount-up' : 'pi pi-sort-amount-down'"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="toggleSortDirection()"
+        />
+      </div>
+    </div>
+  </div>
+}
 
 @if (error()) {
   <p-message severity="error" [text]="error()!" styleClass="journal-message" />
@@ -96,13 +142,134 @@
       />
     }
   </section>
+} @else if (viewMode() === 'list') {
+  <div class="journal-table-wrap">
+    <table class="journal-table">
+      <thead>
+        <tr>
+          <th scope="col">Journal ID</th>
+          <th scope="col">Name</th>
+          <th scope="col">Created</th>
+          <th scope="col">Trading date</th>
+          <th scope="col">Symbol</th>
+          <th scope="col">Session</th>
+          <th scope="col">Progress</th>
+          <th scope="col">Status</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (journal of journals(); track journal.id) {
+          <tr class="journal-table__row" [class.journal-table__row--archived]="isArchived(journal)">
+            <td class="data-mono journal-table__id" [title]="journal.id">
+              {{ formatJournalId(journal.id) }}
+            </td>
+            <td class="journal-table__name">{{ journal.journal_name }}</td>
+            <td class="data-mono journal-table__date">{{ journal.created_at | date: 'medium' }}</td>
+            <td class="data-mono">{{ journal.trading_date }}</td>
+            <td>{{ symbolLabel(journal.symbol) }}</td>
+            <td>{{ journal.market_session }} · {{ journal.analysis_period }}</td>
+            <td class="data-mono">{{ journal.step_progress.progressPct }}%</td>
+            <td>
+              <div class="journal-table__status">
+                @if (journal.auction_strategy; as strategy) {
+                  <p-tag
+                    [value]="strategyLabel(strategy)"
+                    [severity]="strategyTagSeverity(strategy)"
+                  />
+                }
+                @if (journal.recovered_from_trade) {
+                  <p-tag value="Recovered" severity="warn" />
+                }
+                @if (isCompleted(journal)) {
+                  <p-tag value="Complete" severity="success" />
+                } @else if (isArchived(journal)) {
+                  <p-tag value="Archived" severity="secondary" />
+                } @else {
+                  <p-tag
+                    [value]="'Step ' + journal.active_step"
+                    severity="info"
+                  />
+                }
+              </div>
+            </td>
+            <td>
+              <div class="journal-table__actions">
+                @if (isArchived(journal)) {
+                  <p-button
+                    type="button"
+                    icon="pi pi-replay"
+                    severity="secondary"
+                    [rounded]="true"
+                    [text]="true"
+                    ariaLabel="Restore journal"
+                    [loading]="actionBusyId() === journal.id"
+                    (onClick)="confirmRestore(journal)"
+                  />
+                } @else {
+                  <p-button
+                    type="button"
+                    icon="pi pi-play"
+                    severity="success"
+                    [rounded]="true"
+                    [text]="true"
+                    ariaLabel="Resume journal"
+                    [loading]="actionBusyId() === journal.id"
+                    (onClick)="resumeJournal(journal)"
+                  />
+                }
+                <p-button
+                  type="button"
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [rounded]="true"
+                  [text]="true"
+                  ariaLabel="Rename journal"
+                  [disabled]="actionBusyId() === journal.id"
+                  (onClick)="openRenameDialog(journal)"
+                />
+                @if (!isArchived(journal)) {
+                  <p-button
+                    type="button"
+                    icon="pi pi-inbox"
+                    severity="secondary"
+                    [rounded]="true"
+                    [text]="true"
+                    ariaLabel="Archive journal"
+                    [disabled]="actionBusyId() === journal.id"
+                    (onClick)="confirmArchive(journal)"
+                  />
+                }
+                <p-button
+                  type="button"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [rounded]="true"
+                  [text]="true"
+                  ariaLabel="Delete journal"
+                  [disabled]="actionBusyId() === journal.id"
+                  (onClick)="confirmDelete(journal)"
+                />
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 } @else {
   <ul class="journal-list">
     @for (journal of journals(); track journal.id) {
       <li class="journal-card" [class.journal-card--archived]="isArchived(journal)">
         <div class="journal-card__body">
           <div class="journal-card__title-row">
+            <span class="journal-card__id data-mono" [title]="journal.id">
+              {{ formatJournalId(journal.id) }}
+            </span>
             <h2 class="journal-card__title">{{ journal.journal_name }}</h2>
+            @if (journal.recovered_from_trade) {
+              <p-tag value="Recovered" severity="warn" />
+            }
             @if (isCompleted(journal)) {
               <p-tag value="Complete" severity="success" />
             } @else if (isArchived(journal)) {
@@ -110,13 +277,20 @@
             }
           </div>
           <p class="journal-card__meta data-mono">
-            {{ journal.trading_date }}
+            Created {{ journal.created_at | date: 'medium' }}
+            · {{ journal.trading_date }}
             · {{ symbolLabel(journal.symbol) }}
             · {{ journal.market_session }}
             · {{ journal.analysis_period }}
           </p>
           <app-journal-step-progress [progress]="journal.step_progress" />
           <div class="journal-card__tags">
+            @if (journal.auction_strategy; as strategy) {
+              <p-tag
+                [value]="strategyLabel(strategy)"
+                [severity]="strategyTagSeverity(strategy)"
+              />
+            }
             <p-tag
               [value]="
                 isCompleted(journal)

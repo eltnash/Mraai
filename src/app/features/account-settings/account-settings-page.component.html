@@ -1,0 +1,113 @@
+<section class="account-settings">
+  <header class="account-settings__header">
+    <h1 class="account-settings__title">Account settings</h1>
+    <p class="account-settings__subtitle">
+      Configure capital and drawdown limits to unlock Dashboard, Gatekeeper, Journal, and other sections.
+      Limits must follow <strong>Daily ≤ Weekly ≤ Max</strong>.
+    </p>
+  </header>
+
+  @if (riskStatus().blocked) {
+    <div class="account-settings__risk">
+      <p-message severity="warn" text="Account locked — executions and new journal records are paused." styleClass="account-settings__message" />
+      <app-account-risk-locks [accountId]="settingsAccountId()" />
+      @if (riskMetrics(); as metrics) {
+        <p class="account-settings__risk-metrics">{{ metrics }}</p>
+      }
+    </div>
+  }
+
+  @if (error(); as message) {
+    <p-message severity="error" [text]="message" styleClass="account-settings__message" />
+  }
+
+  <form class="account-settings__form" [formGroup]="form" (ngSubmit)="save()">
+    <label class="account-settings__label" for="account-name">Account name</label>
+    <input id="account-name" pInputText type="text" formControlName="name" class="account-settings__input" />
+
+    <label class="account-settings__label">Mode</label>
+    @if (account(); as acc) {
+      <div class="account-settings__mode">
+        <p-tag [value]="typeLabel(acc.account_type)" severity="secondary" />
+        <p class="account-settings__mode-hint">
+          Set when the account was created and cannot be changed. Create a new account for a different mode.
+        </p>
+      </div>
+    }
+
+    <label class="account-settings__label" for="starting-capital">Starting capital</label>
+    <p-inputnumber
+      inputId="starting-capital"
+      formControlName="starting_capital"
+      mode="currency"
+      currency="USD"
+      locale="en-US"
+      [minFractionDigits]="2"
+      styleClass="account-settings__input"
+    />
+
+    <p class="account-settings__hint">
+      Drawdown limits (% of starting capital, closed trades only). Weekly counts Mon–Fri.
+    </p>
+
+    <label class="account-settings__label" for="daily-drawdown">Daily drawdown %</label>
+    <p-inputnumber
+      inputId="daily-drawdown"
+      formControlName="daily_drawdown_pct"
+      suffix="%"
+      [min]="0.01"
+      [maxFractionDigits]="2"
+      styleClass="account-settings__input"
+    />
+
+    <label class="account-settings__label" for="weekly-drawdown">Weekly drawdown %</label>
+    <p-inputnumber
+      inputId="weekly-drawdown"
+      formControlName="weekly_drawdown_pct"
+      suffix="%"
+      [min]="form.controls.daily_drawdown_pct.value"
+      [maxFractionDigits]="2"
+      styleClass="account-settings__input"
+    />
+
+    <label class="account-settings__label" for="max-drawdown">Max drawdown %</label>
+    <p-inputnumber
+      inputId="max-drawdown"
+      formControlName="max_drawdown_pct"
+      suffix="%"
+      [min]="form.controls.weekly_drawdown_pct.value"
+      [maxFractionDigits]="2"
+      styleClass="account-settings__input"
+    />
+
+    @if (hierarchyError(); as hierarchyMessage) {
+      <p-message severity="error" [text]="hierarchyMessage" styleClass="account-settings__message" />
+    }
+
+    <p-button
+      type="submit"
+      label="Save settings"
+      icon="pi pi-check"
+      [loading]="saving()"
+      styleClass="account-settings__submit"
+    />
+  </form>
+
+  <section class="account-settings__danger">
+    <h2 class="account-settings__danger-title">Danger zone</h2>
+    <p class="account-settings__danger-copy">
+      Permanently delete this account and all associated journals, trade history, and screenshots.
+    </p>
+    <p-button
+      type="button"
+      label="Delete account"
+      icon="pi pi-trash"
+      severity="danger"
+      [outlined]="true"
+      [loading]="deleting()"
+      (onClick)="confirmDelete()"
+    />
+  </section>
+</section>
+
+<p-confirmDialog />

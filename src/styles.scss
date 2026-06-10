@@ -44,6 +44,34 @@ body.dqos-dark {
   .p-tooltip-right .p-tooltip-arrow {
     border-right-color: var(--dqos-bg-panel);
   }
+
+  /* SelectButton / ToggleButton — selected state must stay readable on dark panels */
+  .p-selectbutton .p-togglebutton {
+    color: #9ca3af;
+    background: var(--dqos-bg-panel);
+    border-color: var(--dqos-border);
+
+    &:not(:disabled):not(.p-togglebutton-checked):hover {
+      color: #d1d5db;
+      background: #1a1d24;
+    }
+
+    &.p-togglebutton-checked {
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.45);
+      background: var(--dqos-bg-panel);
+
+      .p-togglebutton-content {
+        background: rgba(16, 185, 129, 0.18);
+        box-shadow: none;
+      }
+
+      .p-togglebutton-label,
+      .p-togglebutton-icon {
+        color: #34d399;
+      }
+    }
+  }
 }
 
 .data-mono,

@@ -15,9 +15,14 @@
     <p-message severity="warn" icon="pi pi-lock" [text]="lockReason()!" />
   }
 
-  @if (auditDraft()?.auction_type?.day_type; as dayType) {
-    <p-tag severity="secondary" [value]="'Auction: ' + dayTypeLabel(dayType)" />
-  }
+  <div class="execution-step__tags">
+    @if (auditDraft()?.auction_type?.day_type; as dayType) {
+      <p-tag severity="secondary" [value]="'Profile: ' + dayTypeLabel(dayType)" />
+    }
+    @if (auditDraft()?.behavior?.auction_strategy; as strategy) {
+      <p-tag severity="info" [value]="'Strategy: ' + auctionStrategyLabel(strategy)" />
+    }
+  </div>
 
   <div class="execution-step__body" [class.execution-step__body--locked]="isLocked()">
     <form [formGroup]="executionForm" (ngSubmit)="onSubmit()">

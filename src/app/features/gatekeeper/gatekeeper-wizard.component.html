@@ -117,24 +117,6 @@
             }
           </div>
 
-          @if (activePlaybook(); as playbook) {
-            <div class="gatekeeper-form__playbook">
-              <div class="gatekeeper-form__playbook-header">
-                <p-tag
-                  [severity]="playbookTagSeverity(playbook)"
-                  [value]="playbookLabel(playbook)"
-                />
-                @if (selectedDayType(); as dayType) {
-                  <span class="gatekeeper-form__playbook-day">{{ dayTypeLabel(dayType) }}</span>
-                }
-              </div>
-              <p class="gatekeeper-form__playbook-copy">{{ playbookDescription(playbook, selectedDayType()) }}</p>
-              <p class="gatekeeper-form__hint">
-                Location, Behavior, Confirmation, and Invalidation unlock with options matched to this playbook.
-              </p>
-            </div>
-          }
-
           @if (!isStepValid('auction_type') && auctionTypeGroup().touched) {
             <p-message
               severity="warn"
@@ -146,27 +128,43 @@
 
       @case (3) {
         <section class="gatekeeper-form__panel">
-          @if (activePlaybook(); as playbook) {
-            <div class="gatekeeper-form__playbook gatekeeper-form__playbook--compact">
-              <p-tag
-                [severity]="playbookTagSeverity(playbook)"
-                [value]="playbookLabel(playbook)"
-              />
-            </div>
-          }
-
           <p-message
             severity="info"
             text="Daily oath: I will not trade because price touched a level. The first test provides information. The retest provides opportunity."
             styleClass="gatekeeper-form__oath"
           />
 
-          <div class="gatekeeper-form__retest">
-            <p-checkbox formControlName="is_retest" [binary]="true" inputId="is-retest" />
-            <label for="is-retest">
-              This is a <strong>retest</strong> of proven behavior (not the initial test)
-            </label>
-          </div>
+          <fieldset class="gatekeeper-form__retest">
+            <legend class="gatekeeper-form__retest-question">
+              Was there an attempted retest of the location you see as significant on the current
+              timeframe or on lower timeframes?
+            </legend>
+            <p class="gatekeeper-form__hint gatekeeper-form__hint--lead">
+              The first touch informs structure; a retest is when price returns to that level after
+              leaving it — that is when execution is considered.
+            </p>
+            <div
+              class="gatekeeper-form__retest-actions"
+              [class.gatekeeper-form__retest-actions--blocked]="retestDisqualified()"
+            >
+              <p-selectbutton
+                formControlName="is_retest"
+                [options]="retestAttemptOptions"
+                optionLabel="label"
+                optionValue="value"
+                [allowEmpty]="false"
+                aria-label="Attempted retest of significant location"
+                (onOptionClick)="onRetestOptionClick()"
+                (onChange)="onRetestOptionClick()"
+              />
+              @if (retestDisqualified()) {
+                <p class="gatekeeper-form__retest-warning" role="alert">
+                  <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                  <span>{{ retestRequiredMessage }}</span>
+                </p>
+              }
+            </div>
+          </fieldset>
 
           <app-pillar-step-panel
             stepKey="location"
@@ -192,7 +190,11 @@
             }
           </div>
 
-          @if (!isStepValid('location') && stepGroup('location').touched) {
+          @if (
+            !isStepValid('location') &&
+            form.controls.is_retest.value &&
+            stepGroup('location').touched
+          ) {
             <p-message
               severity="warn"
               text="Select at least one location, add at least one screenshot, and write tagged notes (minimum 20 characters)."
@@ -202,13 +204,36 @@
       }
 
       @case (4) {
-        <section class="gatekeeper-form__panel">
-          @if (activePlaybook(); as playbook) {
-            <div class="gatekeeper-form__playbook gatekeeper-form__playbook--compact">
-              <p-tag
-                [severity]="playbookTagSeverity(playbook)"
-                [value]="playbookLabel(playbook)"
-              />
+        <section class="gatekeeper-form__panel" formGroupName="behavior">
+          <div class="gatekeeper-form__fields">
+            <label class="gatekeeper-form__label">Auction read at the level</label>
+            <p class="gatekeeper-form__hint gatekeeper-form__hint--lead">
+              At your significant level, is price rejecting (failing to sustain business) or accepting
+              (building time and volume)?
+            </p>
+            <app-enum-pill-select
+              formControlName="auction_strategy"
+              ariaLabel="Auction read at the level"
+              [options]="auctionStrategyOptions"
+            />
+            @if (selectedHint(auctionStrategyOptions, stepGroup('behavior').get('auction_strategy')?.value); as hint) {
+              <p class="gatekeeper-form__hint">{{ hint }}</p>
+            }
+          </div>
+
+          @if (selectedAuctionStrategy(); as strategy) {
+            <div class="gatekeeper-form__playbook">
+              <div class="gatekeeper-form__playbook-header">
+                <p-tag
+                  [severity]="playbookTagSeverity(activePlaybook()!)"
+                  [value]="playbookLabel(activePlaybook()!)"
+                />
+                <span class="gatekeeper-form__playbook-day">{{ auctionStrategyLabel(strategy) }}</span>
+              </div>
+              <p class="gatekeeper-form__playbook-copy">{{ playbookDescriptionForStrategy(strategy) }}</p>
+              <p class="gatekeeper-form__hint">
+                Market behavior and Confirmation options below match this auction read.
+              </p>
             </div>
           }
 
@@ -216,26 +241,30 @@
             stepKey="behavior"
             [stepGroup]="stepGroup('behavior')"
             stepTitle="Behavior pillar journal"
-            notesPlaceholder="What behavior at your location supports today's playbook? Rejection/rotation for fades, acceptance/migration for trends."
+            notesPlaceholder="What behavior at your location supports your auction read? Rejection/rotation for responsive auctions, acceptance/migration for initiative auctions."
             [pasteActive]="true"
           />
 
-          <div class="gatekeeper-form__fields" formGroupName="behavior">
+          <div class="gatekeeper-form__fields">
             <label class="gatekeeper-form__label">Market behavior</label>
-            <app-enum-pill-select
-              formControlName="behavior"
-              ariaLabel="Market behavior"
-              [options]="behaviorOptions()"
-            />
-            @if (selectedHint(behaviorOptions(), stepGroup('behavior').get('behavior')?.value); as hint) {
-              <p class="gatekeeper-form__hint">{{ hint }}</p>
+            @if (behaviorOptions().length === 0) {
+              <p class="gatekeeper-form__hint">Select your auction read above to unlock behavior options.</p>
+            } @else {
+              <app-enum-pill-select
+                formControlName="behavior"
+                ariaLabel="Market behavior"
+                [options]="behaviorOptions()"
+              />
+              @if (selectedHint(behaviorOptions(), stepGroup('behavior').get('behavior')?.value); as hint) {
+                <p class="gatekeeper-form__hint">{{ hint }}</p>
+              }
             }
           </div>
 
           @if (!isStepValid('behavior') && stepGroup('behavior').touched) {
             <p-message
               severity="warn"
-              text="Select behavior, add at least one screenshot, and write tagged notes (minimum 20 characters)."
+              text="Select your auction read and market behavior, add at least one screenshot, and write tagged notes (minimum 20 characters)."
             />
           }
         </section>
@@ -250,6 +279,12 @@
                 [value]="playbookLabel(playbook)"
               />
             </div>
+          } @else {
+            <p-message
+              severity="info"
+              text="Complete the Behavior step and select your auction read to unlock confirmation options."
+              styleClass="gatekeeper-form__oath"
+            />
           }
 
           <app-pillar-step-panel

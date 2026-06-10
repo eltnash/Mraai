@@ -3,6 +3,7 @@ import type {
   AnalyzedTimeframe,
   AssetSymbol,
   AuctionLocation,
+  AuctionStrategy,
   CompositeValuePosition,
   ConfirmationTrigger,
   DayType,
@@ -211,6 +212,19 @@ export const PLATFORM_ORDER_TYPE_OPTIONS: SelectOption<PlatformOrderType>[] = [
   { label: 'Sell Stop', value: 'Sell_Stop' },
   { label: 'Buy Stop Limit', value: 'Buy_Stop_Limit' },
   { label: 'Sell Stop Limit', value: 'Sell_Stop_Limit' },
+];
+
+export const AUCTION_STRATEGY_OPTIONS: SelectOption<AuctionStrategy>[] = [
+  {
+    label: 'Rejection at Level',
+    value: 'Level_Rejection',
+    hint: 'Price fails to sustain business at the level — responsive auction; fade toward prior value',
+  },
+  {
+    label: 'Acceptance at Level',
+    value: 'Level_Acceptance',
+    hint: 'Time and volume building at the level — initiative auction; join migration through or from value',
+  },
 ];
 
 export const DAY_TYPE_OPTIONS: SelectOption<DayType>[] = [
