@@ -154,3 +154,62 @@ export function formatRiskAlertDetail(status: AccountRiskStatus, currency = 'USD
 
   return `${details.join(' · ')}. Executions and new journal records are paused until you update rules in Settings.`;
 }
+
+export interface RiskLimitUsage {
+  key: 'daily' | 'weekly' | 'max';
+  label: string;
+  periodLabel: string;
+  usedPct: number;
+  limitPct: number;
+  breached: boolean;
+}
+
+export function buildRiskLimitUsage(
+  account: TradingAccount,
+  status: AccountRiskStatus,
+): RiskLimitUsage[] {
+  return [
+    {
+      key: 'daily',
+      label: 'Daily drawdown',
+      periodLabel: 'Today',
+      usedPct: status.dailyDrawdownPct,
+      limitPct: Number(account.daily_drawdown_pct ?? 0),
+      breached: status.violations.includes('daily_drawdown'),
+    },
+    {
+      key: 'weekly',
+      label: 'Weekly drawdown',
+      periodLabel: 'Mon–Fri',
+      usedPct: status.weeklyDrawdownPct,
+      limitPct: Number(account.weekly_drawdown_pct ?? 0),
+      breached: status.violations.includes('weekly_drawdown'),
+    },
+    {
+      key: 'max',
+      label: 'Max drawdown',
+      periodLabel: 'All time',
+      usedPct: status.maxDrawdownPct,
+      limitPct: Number(account.max_drawdown_pct ?? 0),
+      breached: status.violations.includes('max_drawdown'),
+    },
+  ];
+}
+
+export function riskUsageProgress(usedPct: number, limitPct: number): number {
+  if (limitPct <= 0) {
+    return 0;
+  }
+  return Math.min(100, Math.round((usedPct / limitPct) * 100));
+}
+
+export function riskUsageSeverity(usedPct: number, limitPct: number): 'success' | 'warn' | 'danger' {
+  const progress = riskUsageProgress(usedPct, limitPct);
+  if (progress >= 100) {
+    return 'danger';
+  }
+  if (progress >= 80) {
+    return 'warn';
+  }
+  return 'success';
+}

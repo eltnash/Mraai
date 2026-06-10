@@ -140,20 +140,26 @@ export class TradingAccountService {
 
     const existing = await this.getAccount(accountId);
     const configuredAt = existing?.configured_at ?? new Date().toISOString();
+    const isFirstConfigure = !existing?.configured_at;
+
+    const updatePayload: Record<string, unknown> = {
+      name: input.name.trim(),
+      account_type: input.account_type,
+      currency: input.currency ?? 'USD',
+      starting_capital: input.starting_capital,
+      daily_drawdown_pct: input.daily_drawdown_pct,
+      weekly_drawdown_pct: input.weekly_drawdown_pct,
+      max_drawdown_pct: input.max_drawdown_pct,
+      configured_at: configuredAt,
+    };
+
+    if (isFirstConfigure) {
+      updatePayload['current_balance'] = input.starting_capital;
+    }
 
     const { data, error } = await this.supabase.client
       .from('trading_accounts')
-      .update({
-        name: input.name.trim(),
-        account_type: input.account_type,
-        currency: input.currency ?? 'USD',
-        starting_capital: input.starting_capital,
-        current_balance: existing?.configured_at ? existing.current_balance : input.starting_capital,
-        daily_drawdown_pct: input.daily_drawdown_pct,
-        weekly_drawdown_pct: input.weekly_drawdown_pct,
-        max_drawdown_pct: input.max_drawdown_pct,
-        configured_at: configuredAt,
-      })
+      .update(updatePayload)
       .eq('id', accountId)
       .eq('user_id', user.id)
       .select(ACCOUNT_SELECT)
@@ -163,9 +169,11 @@ export class TradingAccountService {
       throw new Error(error?.message ?? 'Could not save settings.');
     }
 
-    const account = data as TradingAccount;
-    this.activeAccount.set(account);
-    this.upsertCache(account);
+    if (!isFirstConfigure) {
+      await this.recalculateBalance(accountId);
+    }
+
+    const account = (await this.getAccount(accountId)) ?? (data as TradingAccount);
     return account;
   }
 

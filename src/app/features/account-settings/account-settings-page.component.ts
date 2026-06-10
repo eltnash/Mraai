@@ -152,7 +152,6 @@ export class AccountSettingsPageComponent implements OnInit {
     try {
       const value = this.form.getRawValue();
       await this.accountService.updateSettings(accountId, value);
-      await this.accountService.recalculateBalance(accountId);
       await this.riskService.evaluate(accountId);
 
       const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');

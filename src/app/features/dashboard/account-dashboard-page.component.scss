@@ -1,0 +1,135 @@
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  &__title {
+    margin: 0 0 0.25rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 0.875rem;
+  }
+}
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.dashboard-limits {
+  &__title {
+    margin: 0 0 0.25rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+  }
+
+  &__hint {
+    margin: 0 0 1rem;
+    color: #9ca3af;
+    font-size: 0.8125rem;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+.dashboard-stat {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+
+  &--negative {
+    color: #f87171;
+  }
+
+  &--positive {
+    color: #34d399;
+  }
+}
+
+.dashboard-meta {
+  margin: 0.35rem 0 0;
+  color: #9ca3af;
+  font-size: 0.8125rem;
+}
+
+.dashboard-limit-period {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-limit-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-limit-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.dashboard-limit-cap {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.dashboard-limit-breach {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #fca5a5;
+}
+
+.dashboard-alert {
+  display: block;
+  margin-top: 1.5rem;
+}
+
+.dashboard-settings-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #fbbf24;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+:host ::ng-deep .dashboard-progress--success .p-progressbar-value {
+  background: #34d399;
+}
+
+:host ::ng-deep .dashboard-progress--warn .p-progressbar-value {
+  background: #fbbf24;
+}
+
+:host ::ng-deep .dashboard-progress--danger .p-progressbar-value {
+  background: #f87171;
+}
+
+@media (max-width: 992px) {
+  .dashboard-metrics,
+  .dashboard-limits__grid {
+    grid-template-columns: 1fr;
+  }
+}
