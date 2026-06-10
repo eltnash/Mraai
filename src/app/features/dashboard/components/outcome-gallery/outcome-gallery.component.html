@@ -1,0 +1,52 @@
+<section class="outcome-gallery dash-section">
+  <header class="dash-section__header">
+    <div>
+      <span class="dash-section__eyebrow">Journal outcomes</span>
+      <h2 class="dash-section__title">Winning outcome screenshots</h2>
+      <p class="dash-section__subtitle">
+        Charts uploaded in Gatekeeper outcome step on profitable closed trades
+        @if (strategyLabel(); as label) {
+          for <strong>{{ label }}</strong>
+        }.
+      </p>
+    </div>
+  </header>
+
+  @if (items().length > 0) {
+    <div class="outcome-gallery__grid">
+      @for (item of items(); track item.tradeId) {
+        <button type="button" class="outcome-card" (click)="openPreview(item)">
+          <img [src]="item.imageUrl" [alt]="item.fileName" loading="lazy" />
+          <div class="outcome-card__meta">
+            @if (item.strategy; as strategy) {
+              <p-tag [value]="strategyName(strategy)" [severity]="strategySeverity(strategy)" />
+            }
+            <span class="outcome-card__pnl data-mono">+{{ item.netProfit | currency: currency() }}</span>
+            <span class="outcome-card__date">{{ item.tradingDate | date: 'mediumDate' }}</span>
+          </div>
+        </button>
+      }
+    </div>
+  } @else {
+    <p class="outcome-gallery__empty">
+      Close winning trades with outcome screenshots in Gatekeeper to populate this gallery.
+    </p>
+  }
+</section>
+
+<p-dialog
+  [visible]="preview() != null"
+  (visibleChange)="!$event && closePreview()"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(92vw, 960px)' }"
+  header="Outcome chart"
+>
+  @if (preview(); as item) {
+    <img class="outcome-preview" [src]="item.imageUrl" [alt]="item.fileName" />
+    <p class="outcome-preview__caption">
+      {{ item.symbol }} · {{ item.tradingDate | date: 'mediumDate' }} ·
+      +{{ item.netProfit | currency: currency() }}
+    </p>
+  }
+</p-dialog>

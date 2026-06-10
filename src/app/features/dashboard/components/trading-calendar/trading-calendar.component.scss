@@ -1,0 +1,135 @@
+.trading-cal {
+  &__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  &__title-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  &__scope {
+    font-size: 0.68rem;
+    color: #6b7280;
+  }
+
+  &__today {
+    border: none;
+    background: none;
+    color: #34d399;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+    font-size: 0.65rem;
+    color: #6b7280;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    font-size: 0.7rem;
+    color: #9ca3af;
+  }
+}
+
+.cal-day {
+  aspect-ratio: 1;
+  min-height: 2.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--dqos-border);
+  background: #12151c;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.15rem;
+
+  &--empty {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  &--win {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.35);
+  }
+
+  &--loss {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.35);
+  }
+
+  &--flat {
+    background: rgba(156, 163, 175, 0.1);
+    border-color: rgba(156, 163, 175, 0.25);
+  }
+
+  &--today .cal-day__num {
+    color: #34d399;
+    font-weight: 700;
+  }
+
+  &__num {
+    font-size: 0.75rem;
+    color: #d1d5db;
+  }
+
+  &__count {
+    font-size: 0.6rem;
+    color: #9ca3af;
+  }
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+
+  &--win {
+    background: #34d399;
+  }
+
+  &--loss {
+    background: #f87171;
+  }
+
+  &--flat {
+    background: #9ca3af;
+  }
+}

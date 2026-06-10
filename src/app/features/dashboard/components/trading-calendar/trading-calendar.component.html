@@ -1,0 +1,43 @@
+<div class="trading-cal">
+  <header class="trading-cal__nav">
+    <p-button icon="pi pi-chevron-left" [text]="true" severity="secondary" (onClick)="prevMonth()" />
+    <div class="trading-cal__title-wrap">
+      <h3 class="trading-cal__title">{{ monthLabel() }}</h3>
+      @if (strategyLabel(); as label) {
+        <span class="trading-cal__scope">{{ label }} only</span>
+      }
+      <button type="button" class="trading-cal__today" (click)="goToday()">Today</button>
+    </div>
+    <p-button icon="pi pi-chevron-right" [text]="true" severity="secondary" (onClick)="nextMonth()" />
+  </header>
+
+  <div class="trading-cal__weekdays">
+    @for (wd of weekdays; track wd) {
+      <span>{{ wd }}</span>
+    }
+  </div>
+
+  <div class="trading-cal__grid">
+    @for (cell of cells(); track $index) {
+      <div
+        [class]="dayClass(cell.date)"
+        [class.cal-day--today]="isToday(cell.date)"
+        [pTooltip]="tooltipFor(cell.date)"
+        tooltipPosition="top"
+      >
+        @if (cell.day != null) {
+          <span class="cal-day__num">{{ cell.day }}</span>
+          @if (summaryFor(cell.date); as summary) {
+            <span class="cal-day__count data-mono">{{ summary.tradeCount }}</span>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <footer class="trading-cal__legend">
+    <span><i class="legend-dot legend-dot--win"></i> Winning day</span>
+    <span><i class="legend-dot legend-dot--loss"></i> Losing day</span>
+    <span><i class="legend-dot legend-dot--flat"></i> Breakeven</span>
+  </footer>
+</div>

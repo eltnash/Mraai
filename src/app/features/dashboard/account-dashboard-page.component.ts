@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -39,13 +40,17 @@ import { KpiGlossarySectionComponent } from './components/kpi-glossary-section/k
 import { PerformanceAnalyticsSectionComponent } from './components/performance-analytics-section/performance-analytics-section.component';
 import { RiskAnalyticsSectionComponent } from './components/risk-analytics-section/risk-analytics-section.component';
 import { SetupAnalyticsSectionComponent } from './components/setup-analytics-section/setup-analytics-section.component';
+import { OutcomeGalleryComponent } from './components/outcome-gallery/outcome-gallery.component';
 import { StrategyHealthSectionComponent } from './components/strategy-health-section/strategy-health-section.component';
+import { TradingCalendarComponent } from './components/trading-calendar/trading-calendar.component';
+import { buildDaySummaries } from './trading-metrics.utils';
 
 @Component({
   selector: 'app-account-dashboard-page',
   imports: [
     DecimalPipe,
     FormsModule,
+    CardModule,
     MessageModule,
     ProgressBarModule,
     ProgressSpinnerModule,
@@ -60,6 +65,8 @@ import { StrategyHealthSectionComponent } from './components/strategy-health-sec
     ExecutionQualitySectionComponent,
     RiskAnalyticsSectionComponent,
     StrategyHealthSectionComponent,
+    TradingCalendarComponent,
+    OutcomeGalleryComponent,
     KpiGlossarySectionComponent,
   ],
   templateUrl: './account-dashboard-page.component.html',
@@ -100,6 +107,21 @@ export class AccountDashboardPageComponent implements OnInit {
       data.strategyBundles[0] ??
       null
     );
+  });
+
+  protected readonly activeDaySummaries = computed(() => {
+    const data = this.snapshot();
+    const strategy = this.activeStrategy();
+    if (!data) return new Map();
+    const trades = data.trades.filter((t) => t.auction_strategy === strategy);
+    return buildDaySummaries(trades);
+  });
+
+  protected readonly activeOutcomeGallery = computed(() => {
+    const data = this.snapshot();
+    const strategy = this.activeStrategy();
+    if (!data) return [];
+    return data.outcomeGallery.filter((item) => item.strategy === strategy);
   });
 
   protected readonly riskLimits = computed(() => {

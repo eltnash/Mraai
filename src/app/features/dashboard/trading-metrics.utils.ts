@@ -1,7 +1,5 @@
-import {
-  computeRiskRewardMetrics,
-  computeStopDistancePts,
-} from '../gatekeeper/execution-risk.utils';
+import { computeRiskRewardMetrics } from '../gatekeeper/execution-risk.utils';
+import { computeTradeRMultiple } from '../../core/trading/trade-r.utils';
 import {
   behaviorLabel,
   confirmationLabel,
@@ -103,41 +101,16 @@ export function computeTradeR(trade: {
   symbol: string;
   size: number | null;
 }): number | null {
-  if (trade.r_multiple != null && Number.isFinite(trade.r_multiple)) {
-    return trade.r_multiple;
-  }
-
-  const { entry_price, stop_price, exit_price, direction } = trade;
-  if (entry_price != null && stop_price != null && exit_price != null) {
-    const riskPts = computeStopDistancePts(entry_price, stop_price, direction);
-    if (riskPts > 0) {
-      const rewardPts =
-        direction === 'LONG' ? exit_price - entry_price : entry_price - exit_price;
-      return rewardPts / riskPts;
-    }
-  }
-
-  if (
-    trade.net_profit != null &&
-    entry_price != null &&
-    stop_price != null &&
-    trade.size != null &&
-    trade.size > 0
-  ) {
-    const risk = computeRiskRewardMetrics({
-      symbol: trade.symbol as AssetSymbol,
-      direction,
-      entry_price,
-      stop_price,
-      target_price: null,
-      volume: trade.size,
-    });
-    if (risk && risk.total_risk > 0) {
-      return trade.net_profit / risk.total_risk;
-    }
-  }
-
-  return null;
+  return computeTradeRMultiple({
+    r_multiple: trade.r_multiple,
+    entry_price: trade.entry_price,
+    stop_price: trade.stop_price,
+    exit_price: trade.exit_price,
+    direction: trade.direction,
+    net_profit: trade.net_profit,
+    symbol: trade.symbol as AssetSymbol,
+    size: trade.size,
+  });
 }
 
 export function processScoreFromAudit(audit: ExecutionAuditRow | undefined): number {
@@ -713,6 +686,30 @@ export function computeStrategyBundles(trades: EnrichedTradeRow[]): StrategyAnal
       riskAnalytics: computeRiskAnalytics(slice, 0),
     };
   });
+}
+
+export function calendarMonthGrid(
+  year: number,
+  month: number,
+): { date: string | null; day: number | null }[] {
+  const last = new Date(year, month + 1, 0);
+  const startPad = (new Date(year, month, 1).getDay() + 6) % 7;
+  const cells: { date: string | null; day: number | null }[] = [];
+
+  for (let i = 0; i < startPad; i++) {
+    cells.push({ date: null, day: null });
+  }
+
+  for (let day = 1; day <= last.getDate(); day++) {
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    cells.push({ date: iso, day });
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push({ date: null, day: null });
+  }
+
+  return cells;
 }
 
 export function buildDaySummaries(trades: EnrichedTradeRow[]): Map<string, import('./dashboard.types').DayTradeSummary> {

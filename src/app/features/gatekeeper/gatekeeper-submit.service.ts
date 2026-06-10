@@ -15,6 +15,7 @@ import type { GatekeeperSubmitPayload, GatekeeperSubmitResult } from './executio
 import type { GatekeeperFormValue, OutcomeStepValue } from './gatekeeper-form.types';
 import { AccountRiskService } from '../../core/accounts/account-risk.service';
 import { TradingAccountService } from '../../core/accounts/trading-account.service';
+import { computeTradeRMultiple } from '../../core/trading/trade-r.utils';
 import { GatekeeperDraftService } from './gatekeeper-draft.service';
 import {
   GatekeeperScreenshotDraftService,
@@ -119,6 +120,19 @@ export class GatekeeperSubmitService {
 
     await this.riskService.assertCanRecord(accountId);
 
+    const rMultiple =
+      payload.trade.status === 'CLOSED'
+        ? computeTradeRMultiple({
+            entry_price: payload.trade.entry_price,
+            stop_price: payload.trade.stop_price,
+            exit_price: payload.trade.exit_price ?? null,
+            direction: payload.trade.direction,
+            net_profit: payload.trade.net_profit ?? null,
+            symbol: payload.trade.symbol,
+            size: payload.trade.size,
+          })
+        : null;
+
     const { data: trade, error: tradeError } = await client
       .from('trades')
       .insert({
@@ -142,6 +156,7 @@ export class GatekeeperSubmitService {
         exit_price: payload.trade.exit_price ?? null,
         commissions: payload.trade.commissions ?? 0,
         net_profit: payload.trade.net_profit ?? null,
+        r_multiple: rMultiple,
       })
       .select('id')
       .single();

@@ -49,6 +49,23 @@
       <app-edge-discovery-section [patterns]="bundle.edgePatterns" />
       <app-execution-quality-section [grades]="bundle.processGrades" [avgScore]="bundle.avgProcessScore" />
       <app-risk-analytics-section [risk]="bundle.riskAnalytics" [currency]="currency()" />
+
+      <section class="dash-section dashboard-journal-row">
+        <p-card header="Trading calendar" styleClass="dash-card">
+          <app-trading-calendar
+            [daySummaries]="activeDaySummaries()"
+            [currency]="currency()"
+            [strategyLabel]="bundle.label"
+          />
+        </p-card>
+        <div class="dashboard-journal-row__gallery">
+          <app-outcome-gallery
+            [items]="activeOutcomeGallery()"
+            [currency]="currency()"
+            [strategyLabel]="bundle.label"
+          />
+        </div>
+      </section>
     }
 
     <app-kpi-glossary-section />

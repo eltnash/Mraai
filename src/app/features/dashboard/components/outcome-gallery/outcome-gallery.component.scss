@@ -1,0 +1,68 @@
+.outcome-gallery {
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+
+  &__empty {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+}
+
+.outcome-card {
+  border: 1px solid var(--dqos-border);
+  border-radius: 8px;
+  background: #12151c;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s;
+
+  &:hover {
+    border-color: rgba(52, 211, 153, 0.45);
+    transform: translateY(-2px);
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    display: block;
+    background: #0d0e12;
+  }
+
+  &__meta {
+    padding: 0.5rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__pnl {
+    font-size: 0.8rem;
+    color: #34d399;
+    font-weight: 600;
+  }
+
+  &__date {
+    font-size: 0.7rem;
+    color: #6b7280;
+  }
+}
+
+.outcome-preview {
+  width: 100%;
+  border-radius: 6px;
+  display: block;
+}
+
+.outcome-preview__caption {
+  margin: 0.75rem 0 0;
+  color: #9ca3af;
+  font-size: 0.8125rem;
+  text-align: center;
+}
