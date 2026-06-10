@@ -27,6 +27,7 @@ export class MainLayoutComponent {
     { label: 'Dashboard', path: 'dashboard', icon: 'pi pi-chart-bar' },
     { label: 'Gatekeeper', path: 'gatekeeper', icon: 'pi pi-shield' },
     { label: 'Journal', path: 'journal', icon: 'pi pi-table' },
+    { label: 'Trade History', path: 'trade-history', icon: 'pi pi-list' },
     { label: 'Setups', path: 'setups', icon: 'pi pi-book' },
     { label: 'Edge Lab', path: 'lab', icon: 'pi pi-sparkles' },
   ];

@@ -1,0 +1,151 @@
+<header class="ledger-header">
+  <div>
+    <h1 class="ledger-header__title">Trade history</h1>
+    <p class="ledger-header__subtitle">
+      Platform-style ledger of Gatekeeper execution trades — same columns as MT5 account history.
+    </p>
+    <p class="ledger-header__meta data-mono">{{ pageLabel() }}</p>
+  </div>
+  <a routerLink="/journal" class="ledger-header__link">
+    <i class="pi pi-book" aria-hidden="true"></i>
+    Journal sessions
+  </a>
+</header>
+
+@if (error(); as message) {
+  <p-message severity="error" [text]="message" styleClass="ledger-message" />
+}
+
+@if (loading()) {
+  <div class="ledger-loading">
+    <p-progressSpinner strokeWidth="4" ariaLabel="Loading trade history" />
+  </div>
+} @else if (rows().length === 0) {
+  <section class="ledger-empty">
+    <p class="ledger-empty__text">No execution trades recorded yet.</p>
+    <p class="ledger-empty__hint">
+      Complete the Execution step in Gatekeeper to save trades to the ledger.
+    </p>
+    <a routerLink="/gatekeeper" class="ledger-empty__cta">Open Gatekeeper</a>
+  </section>
+} @else {
+  <div class="ledger-shell">
+    <div class="ledger-table-wrap">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Ticket</th>
+            <th scope="col">Type</th>
+            <th scope="col">Volume</th>
+            <th scope="col">Symbol</th>
+            <th scope="col">Price</th>
+            <th scope="col">S / L</th>
+            <th scope="col">T / P</th>
+            <th scope="col">Time</th>
+            <th scope="col">Price</th>
+            <th scope="col">Commission</th>
+            <th scope="col">Fee</th>
+            <th scope="col">Swap</th>
+            <th scope="col">Profit</th>
+            <th scope="col">Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.tradeId) {
+            <tr class="ledger-table__row">
+              <td class="data-mono">{{ formatMt5DateTime(row.entryTime) }}</td>
+              <td class="data-mono ledger-table__ticket">{{ row.ticket }}</td>
+              <td>
+                <span
+                  class="ledger-table__side"
+                  [class.ledger-table__side--buy]="row.side === 'buy'"
+                  [class.ledger-table__side--sell]="row.side === 'sell'"
+                >
+                  {{ row.side }}
+                </span>
+              </td>
+              <td class="data-mono">{{ formatLedgerVolume(row.volume) }}</td>
+              <td class="data-mono">{{ row.symbol }}</td>
+              <td class="data-mono">{{ formatLedgerPrice(row.entryPrice) }}</td>
+              <td class="data-mono">
+                @if (row.stopLoss != null) {
+                  <span
+                    class="ledger-table__level"
+                    [class.ledger-table__level--sl]="row.closedAtStop"
+                  >
+                    {{ formatLedgerPrice(row.stopLoss) }}
+                  </span>
+                }
+              </td>
+              <td class="data-mono">
+                @if (row.takeProfit != null) {
+                  <span
+                    class="ledger-table__level"
+                    [class.ledger-table__level--tp]="row.closedAtTakeProfit"
+                  >
+                    {{ formatLedgerPrice(row.takeProfit) }}
+                  </span>
+                }
+              </td>
+              <td class="data-mono">{{ formatMt5DateTime(row.exitTime) }}</td>
+              <td class="data-mono">{{ formatLedgerPrice(row.exitPrice) }}</td>
+              <td class="data-mono">{{ formatLedgerMoney(row.commission) }}</td>
+              <td class="data-mono">{{ formatLedgerMoney(row.fee) }}</td>
+              <td
+                class="data-mono"
+                [class.ledger-table__money--neg]="row.swap < 0"
+                [class.ledger-table__money--pos]="row.swap > 0"
+              >
+                {{ formatLedgerMoney(row.swap) }}
+              </td>
+              <td
+                class="data-mono ledger-table__profit"
+                [class.ledger-table__money--neg]="(row.profit ?? 0) < 0"
+                [class.ledger-table__money--pos]="(row.profit ?? 0) > 0"
+              >
+                {{ row.profit != null ? formatLedgerMoney(row.profit) : '' }}
+              </td>
+              <td class="ledger-table__comment">{{ row.comment ?? row.journalName ?? '' }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="ledger-table__footer">
+            <td colspan="10" class="ledger-table__footer-label">Page totals</td>
+            <td class="data-mono">{{ formatLedgerMoney(pageTotals().commission) }}</td>
+            <td class="data-mono">{{ formatLedgerMoney(pageTotals().fee) }}</td>
+            <td
+              class="data-mono"
+              [class.ledger-table__money--neg]="pageTotals().swap < 0"
+              [class.ledger-table__money--pos]="pageTotals().swap > 0"
+            >
+              {{ formatLedgerMoney(pageTotals().swap) }}
+            </td>
+            <td
+              class="data-mono ledger-table__profit"
+              [class.ledger-table__money--neg]="pageTotals().profit < 0"
+              [class.ledger-table__money--pos]="pageTotals().profit > 0"
+            >
+              {{ formatLedgerMoney(pageTotals().profit) }}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <nav class="ledger-pager" aria-label="Trade history pages">
+      <p-paginator
+        [first]="page() * pageSize"
+        [rows]="pageSize"
+        [totalRecords]="totalCount()"
+        [showFirstLastIcon]="true"
+        [showPageLinks]="true"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        (onPageChange)="onPageChange($event)"
+      />
+    </nav>
+  </div>
+}

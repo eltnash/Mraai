@@ -1,0 +1,99 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { MessageModule } from 'primeng/message';
+import { PaginatorModule, type PaginatorState } from 'primeng/paginator';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+
+import { TradeLedgerService } from './trade-ledger.service';
+import {
+  TRADE_LEDGER_PAGE_SIZE,
+  type TradeLedgerPageTotals,
+  type TradeLedgerRow,
+} from './trade-ledger.types';
+import {
+  formatLedgerMoney,
+  formatLedgerPrice,
+  formatLedgerVolume,
+  formatMt5DateTime,
+} from './trade-ledger.utils';
+
+@Component({
+  selector: 'app-trade-ledger-page',
+  imports: [RouterLink, MessageModule, PaginatorModule, ProgressSpinnerModule],
+  templateUrl: './trade-ledger-page.component.html',
+  styleUrl: './trade-ledger-page.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class TradeLedgerPageComponent implements OnInit {
+  private readonly ledgerService = inject(TradeLedgerService);
+
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
+  protected readonly rows = signal<TradeLedgerRow[]>([]);
+  protected readonly totalCount = signal(0);
+  protected readonly page = signal(0);
+  protected readonly pageSize = TRADE_LEDGER_PAGE_SIZE;
+
+  protected readonly formatMt5DateTime = formatMt5DateTime;
+  protected readonly formatLedgerPrice = formatLedgerPrice;
+  protected readonly formatLedgerVolume = formatLedgerVolume;
+  protected readonly formatLedgerMoney = formatLedgerMoney;
+
+  protected readonly pageTotals = computed((): TradeLedgerPageTotals => {
+    return this.rows().reduce(
+      (acc, row) => ({
+        commission: acc.commission + row.commission,
+        fee: acc.fee + row.fee,
+        swap: acc.swap + row.swap,
+        profit: acc.profit + (row.profit ?? 0),
+      }),
+      { commission: 0, fee: 0, swap: 0, profit: 0 },
+    );
+  });
+
+  protected readonly pageLabel = computed(() => {
+    const total = this.totalCount();
+    if (total === 0) {
+      return 'No trades';
+    }
+    const start = this.page() * this.pageSize + 1;
+    const end = Math.min(start + this.rows().length - 1, total);
+    return `Showing ${start}–${end} of ${total} execution trades`;
+  });
+
+  ngOnInit(): void {
+    void this.loadPage(0);
+  }
+
+  protected onPageChange(event: PaginatorState): void {
+    const nextPage = event.page ?? 0;
+    if (nextPage === this.page()) {
+      return;
+    }
+    void this.loadPage(nextPage);
+  }
+
+  private async loadPage(page: number): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+
+    try {
+      const result = await this.ledgerService.listPage(page, this.pageSize);
+      this.rows.set(result.rows);
+      this.totalCount.set(result.totalCount);
+      this.page.set(result.page);
+    } catch (err) {
+      this.error.set(err instanceof Error ? err.message : 'Could not load trade history');
+      this.rows.set([]);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+}
