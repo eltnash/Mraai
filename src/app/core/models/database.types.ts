@@ -43,6 +43,7 @@ export interface TradingAccount {
   starting_capital: number | null;
   current_balance: number | null;
   max_drawdown_pct: number | null;
+  weekly_drawdown_pct: number | null;
   daily_drawdown_pct: number | null;
   configured_at: string | null;
   created_at: string;

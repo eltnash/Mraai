@@ -6,7 +6,13 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -19,8 +25,23 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { AccountRiskService } from '../../core/accounts/account-risk.service';
 import { formatRiskAlertDetail } from '../../core/accounts/account-risk.utils';
 import { AccountScopeService } from '../../core/accounts/account-scope.service';
+import { validateDrawdownHierarchy } from '../../core/accounts/drawdown-limits.utils';
 import { TradingAccountService } from '../../core/accounts/trading-account.service';
 import type { TradingAccountType } from '../../core/models/database.types';
+
+function drawdownHierarchyValidator(control: AbstractControl): ValidationErrors | null {
+  const daily = Number(control.get('daily_drawdown_pct')?.value);
+  const weekly = Number(control.get('weekly_drawdown_pct')?.value);
+  const max = Number(control.get('max_drawdown_pct')?.value);
+
+  const message = validateDrawdownHierarchy({
+    daily_drawdown_pct: daily,
+    weekly_drawdown_pct: weekly,
+    max_drawdown_pct: max,
+  });
+
+  return message ? { drawdownHierarchy: message } : null;
+}
 
 @Component({
   selector: 'app-account-settings-page',
@@ -59,18 +80,30 @@ export class AccountSettingsPageComponent implements OnInit {
     return status.blocked ? formatRiskAlertDetail(status, currency) : null;
   });
 
+  protected readonly hierarchyError = computed(() => {
+    const errors = this.form.errors;
+    if (errors?.['drawdownHierarchy']) {
+      return String(errors['drawdownHierarchy']);
+    }
+    return null;
+  });
+
   protected readonly typeOptions = [
     { label: 'Demo', value: 'demo' as const },
     { label: 'Live', value: 'live' as const },
   ];
 
-  protected readonly form = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    account_type: ['demo' as TradingAccountType, Validators.required],
-    starting_capital: [10_000, [Validators.required, Validators.min(0.01)]],
-    max_drawdown_pct: [10, [Validators.required, Validators.min(0.01)]],
-    daily_drawdown_pct: [5, [Validators.required, Validators.min(0.01)]],
-  });
+  protected readonly form = this.fb.nonNullable.group(
+    {
+      name: ['', [Validators.required, Validators.minLength(2)]],
+      account_type: ['demo' as TradingAccountType, Validators.required],
+      starting_capital: [10_000, [Validators.required, Validators.min(0.01)]],
+      daily_drawdown_pct: [5, [Validators.required, Validators.min(0.01)]],
+      weekly_drawdown_pct: [8, [Validators.required, Validators.min(0.01)]],
+      max_drawdown_pct: [10, [Validators.required, Validators.min(0.01)]],
+    },
+    { validators: drawdownHierarchyValidator },
+  );
 
   async ngOnInit(): Promise<void> {
     const accountId = this.route.parent?.snapshot.paramMap.get('accountId');
@@ -85,12 +118,20 @@ export class AccountSettingsPageComponent implements OnInit {
 
     await this.riskService.evaluate(accountId);
 
+    const daily = acc.daily_drawdown_pct != null ? Number(acc.daily_drawdown_pct) : 5;
+    const weekly =
+      acc.weekly_drawdown_pct != null
+        ? Number(acc.weekly_drawdown_pct)
+        : Math.min(Number(acc.max_drawdown_pct ?? 10), Math.max(daily, daily * 2));
+    const max = acc.max_drawdown_pct != null ? Number(acc.max_drawdown_pct) : 10;
+
     this.form.patchValue({
       name: acc.name,
       account_type: acc.account_type,
       starting_capital: acc.starting_capital != null ? Number(acc.starting_capital) : 10_000,
-      max_drawdown_pct: acc.max_drawdown_pct != null ? Number(acc.max_drawdown_pct) : 10,
-      daily_drawdown_pct: acc.daily_drawdown_pct != null ? Number(acc.daily_drawdown_pct) : 5,
+      daily_drawdown_pct: daily,
+      weekly_drawdown_pct: weekly,
+      max_drawdown_pct: max,
     });
   }
 

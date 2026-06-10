@@ -4,6 +4,7 @@ import {
   collectAuditMediaPaths,
   collectDraftMediaPaths,
 } from './account-media-cleanup.utils';
+import { validateDrawdownHierarchy } from './drawdown-limits.utils';
 import type { TradingAccount, TradingAccountType } from '../models/database.types';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -11,13 +12,14 @@ export interface TradingAccountSettingsInput {
   name: string;
   account_type: TradingAccountType;
   starting_capital: number;
-  max_drawdown_pct: number;
   daily_drawdown_pct: number;
+  weekly_drawdown_pct: number;
+  max_drawdown_pct: number;
   currency?: string;
 }
 
 const ACCOUNT_SELECT =
-  'id, user_id, name, account_type, currency, starting_capital, current_balance, max_drawdown_pct, daily_drawdown_pct, configured_at, created_at, updated_at';
+  'id, user_id, name, account_type, currency, starting_capital, current_balance, daily_drawdown_pct, weekly_drawdown_pct, max_drawdown_pct, configured_at, created_at, updated_at';
 
 @Injectable({ providedIn: 'root' })
 export class TradingAccountService {
@@ -127,8 +129,13 @@ export class TradingAccountService {
     if (input.starting_capital <= 0) {
       throw new Error('Starting capital must be greater than zero.');
     }
-    if (input.max_drawdown_pct <= 0 || input.daily_drawdown_pct <= 0) {
-      throw new Error('Drawdown limits must be greater than zero.');
+    const hierarchyError = validateDrawdownHierarchy({
+      daily_drawdown_pct: input.daily_drawdown_pct,
+      weekly_drawdown_pct: input.weekly_drawdown_pct,
+      max_drawdown_pct: input.max_drawdown_pct,
+    });
+    if (hierarchyError) {
+      throw new Error(hierarchyError);
     }
 
     const existing = await this.getAccount(accountId);
@@ -142,8 +149,9 @@ export class TradingAccountService {
         currency: input.currency ?? 'USD',
         starting_capital: input.starting_capital,
         current_balance: existing?.configured_at ? existing.current_balance : input.starting_capital,
-        max_drawdown_pct: input.max_drawdown_pct,
         daily_drawdown_pct: input.daily_drawdown_pct,
+        weekly_drawdown_pct: input.weekly_drawdown_pct,
+        max_drawdown_pct: input.max_drawdown_pct,
         configured_at: configuredAt,
       })
       .eq('id', accountId)

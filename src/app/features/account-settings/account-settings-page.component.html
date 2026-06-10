@@ -3,6 +3,7 @@
     <h1 class="account-settings__title">Account settings</h1>
     <p class="account-settings__subtitle">
       Configure capital and drawdown limits to unlock Dashboard, Gatekeeper, Journal, and other sections.
+      Limits must follow <strong>Daily ≤ Weekly ≤ Max</strong>.
     </p>
   </header>
 
@@ -38,15 +39,9 @@
       styleClass="account-settings__input"
     />
 
-    <label class="account-settings__label" for="max-drawdown">Max drawdown %</label>
-    <p-inputnumber
-      inputId="max-drawdown"
-      formControlName="max_drawdown_pct"
-      suffix="%"
-      [min]="0.01"
-      [maxFractionDigits]="2"
-      styleClass="account-settings__input"
-    />
+    <p class="account-settings__hint">
+      Drawdown limits (% of starting capital, closed trades only). Weekly counts Mon–Fri.
+    </p>
 
     <label class="account-settings__label" for="daily-drawdown">Daily drawdown %</label>
     <p-inputnumber
@@ -57,6 +52,30 @@
       [maxFractionDigits]="2"
       styleClass="account-settings__input"
     />
+
+    <label class="account-settings__label" for="weekly-drawdown">Weekly drawdown %</label>
+    <p-inputnumber
+      inputId="weekly-drawdown"
+      formControlName="weekly_drawdown_pct"
+      suffix="%"
+      [min]="form.controls.daily_drawdown_pct.value"
+      [maxFractionDigits]="2"
+      styleClass="account-settings__input"
+    />
+
+    <label class="account-settings__label" for="max-drawdown">Max drawdown %</label>
+    <p-inputnumber
+      inputId="max-drawdown"
+      formControlName="max_drawdown_pct"
+      suffix="%"
+      [min]="form.controls.weekly_drawdown_pct.value"
+      [maxFractionDigits]="2"
+      styleClass="account-settings__input"
+    />
+
+    @if (hierarchyError(); as hierarchyMessage) {
+      <p-message severity="error" [text]="hierarchyMessage" styleClass="account-settings__message" />
+    }
 
     <p-button
       type="submit"

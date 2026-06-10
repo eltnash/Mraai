@@ -5,6 +5,7 @@ import {
   evaluateAccountRisk,
   formatRiskBlockMessage,
   localTradingDateIso,
+  localWeekDateRange,
   type AccountRiskStatus,
 } from './account-risk.utils';
 import { TradingAccountService } from './trading-account.service';
@@ -13,7 +14,9 @@ const EMPTY_STATUS: AccountRiskStatus = {
   blocked: false,
   violations: [],
   todayNetProfit: 0,
+  weekNetProfit: 0,
   maxDrawdownPct: 0,
+  weeklyDrawdownPct: 0,
   dailyDrawdownPct: 0,
 };
 
@@ -40,8 +43,11 @@ export class AccountRiskService {
       return EMPTY_STATUS;
     }
 
-    const todayNetProfit = await this.loadTodayNetProfit(accountId);
-    const status = evaluateAccountRisk(account, todayNetProfit);
+    const [todayNetProfit, weekNetProfit] = await Promise.all([
+      this.loadTodayNetProfit(accountId),
+      this.loadWeekNetProfit(accountId),
+    ]);
+    const status = evaluateAccountRisk(account, todayNetProfit, weekNetProfit);
     this.accountIdSignal.set(accountId);
     this.statusSignal.set(status);
     return status;
@@ -69,6 +75,24 @@ export class AccountRiskService {
       .eq('account_id', accountId)
       .eq('status', 'CLOSED')
       .eq('trading_date', tradingDate);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []).reduce((sum, row) => sum + (Number(row.net_profit) || 0), 0);
+  }
+
+  private async loadWeekNetProfit(accountId: string): Promise<number> {
+    const { start, end } = localWeekDateRange();
+
+    const { data, error } = await this.supabase.client
+      .from('trades')
+      .select('net_profit')
+      .eq('account_id', accountId)
+      .eq('status', 'CLOSED')
+      .gte('trading_date', start)
+      .lte('trading_date', end);
 
     if (error) {
       throw new Error(error.message);
