@@ -7,27 +7,53 @@ export interface ParsedYoutubeEmbed {
 
 const EMBED_BASE = 'https://www.youtube-nocookie.com/embed/';
 
-export function parseYoutubeUrl(raw: string): ParsedYoutubeEmbed | null {
+/** Accepts watch URLs, short links, embed URLs, or full iframe embed snippets. */
+function normalizeYoutubeInput(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) {
+    return trimmed;
+  }
+
+  const iframeSrc = trimmed.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i)?.[1];
+  if (iframeSrc) {
+    return iframeSrc;
+  }
+
+  const quotedSrc = trimmed.match(/\bsrc=["'](https?:\/\/[^"']+)["']/i)?.[1];
+  if (quotedSrc && /youtube|youtu\.be/i.test(quotedSrc)) {
+    return quotedSrc;
+  }
+
+  return trimmed;
+}
+
+function videoIdFromPathname(pathname: string): string | null {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments[0] === 'embed' || segments[0] === 'shorts' || segments[0] === 'live') {
+    return segments[1] ?? null;
+  }
+  return segments[0] ?? null;
+}
+
+export function parseYoutubeUrl(raw: string): ParsedYoutubeEmbed | null {
+  const normalized = normalizeYoutubeInput(raw);
+  if (!normalized) {
     return null;
   }
 
   let videoId: string | null = null;
 
   try {
-    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    const url = new URL(normalized.includes('://') ? normalized : `https://${normalized}`);
     const host = url.hostname.replace(/^www\./, '');
 
     if (host === 'youtu.be') {
-      videoId = url.pathname.split('/').filter(Boolean)[0] ?? null;
-    } else if (host === 'youtube.com' || host === 'm.youtube.com') {
+      videoId = videoIdFromPathname(url.pathname);
+    } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com') {
       if (url.pathname === '/watch') {
         videoId = url.searchParams.get('v');
-      } else if (url.pathname.startsWith('/embed/')) {
-        videoId = url.pathname.split('/')[2] ?? null;
-      } else if (url.pathname.startsWith('/shorts/')) {
-        videoId = url.pathname.split('/')[2] ?? null;
+      } else {
+        videoId = videoIdFromPathname(url.pathname);
       }
     }
   } catch {

@@ -318,7 +318,7 @@ export class GalleryService {
   async uploadVideo(accountId: string, input: GalleryVideoUploadInput): Promise<void> {
     const parsed = parseYoutubeUrl(input.sourceUrl);
     if (!parsed) {
-      throw new Error('Paste a valid YouTube link.');
+      throw new Error('Paste a valid YouTube link, embed URL, or iframe embed code.');
     }
 
     const {

@@ -75,7 +75,7 @@ export class JournalVideosPanelComponent implements OnInit {
   protected async addVideo(): Promise<void> {
     const parsed = parseYoutubeUrl(this.urlInput());
     if (!parsed) {
-      this.addError.set('Paste a valid YouTube link (watch, youtu.be, or embed URL).');
+      this.addError.set('Paste a valid YouTube link, embed URL, or iframe embed code.');
       return;
     }
 
