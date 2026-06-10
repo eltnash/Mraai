@@ -12,6 +12,7 @@ import { PaginatorModule, type PaginatorState } from 'primeng/paginator';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 import { GatekeeperDraftService } from '../gatekeeper/gatekeeper-draft.service';
+import { formatJournalIdShort } from '../../shared/utils/journal-id.utils';
 import { TradeLedgerService } from './trade-ledger.service';
 import {
   TRADE_LEDGER_PAGE_SIZE,
@@ -45,6 +46,7 @@ export class TradeLedgerPageComponent implements OnInit {
   protected readonly page = signal(0);
   protected readonly pageSize = TRADE_LEDGER_PAGE_SIZE;
 
+  protected readonly formatJournalId = formatJournalIdShort;
   protected readonly formatMt5DateTime = formatMt5DateTime;
   protected readonly formatLedgerPrice = formatLedgerPrice;
   protected readonly formatLedgerVolume = formatLedgerVolume;

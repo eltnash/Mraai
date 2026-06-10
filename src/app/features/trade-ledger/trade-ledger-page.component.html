@@ -34,6 +34,7 @@
       <table class="ledger-table">
         <thead>
           <tr>
+            <th scope="col">Journal ID</th>
             <th scope="col">Time</th>
             <th scope="col">Ticket</th>
             <th scope="col">Type</th>
@@ -63,6 +64,9 @@
               (keydown.enter)="openJournal(row.tradeId)"
               (keydown.space)="$event.preventDefault(); openJournal(row.tradeId)"
             >
+              <td class="data-mono ledger-table__journal-id" [title]="row.journalId">
+                {{ formatJournalId(row.journalId) }}
+              </td>
               <td class="data-mono">{{ formatMt5DateTime(row.entryTime) }}</td>
               <td class="data-mono ledger-table__ticket">{{ row.ticket }}</td>
               <td>
@@ -121,7 +125,7 @@
         </tbody>
         <tfoot>
           <tr class="ledger-table__footer">
-            <td colspan="10" class="ledger-table__footer-label">Page totals</td>
+            <td colspan="11" class="ledger-table__footer-label">Page totals</td>
             <td class="data-mono">{{ formatLedgerMoney(pageTotals().commission) }}</td>
             <td class="data-mono">{{ formatLedgerMoney(pageTotals().fee) }}</td>
             <td

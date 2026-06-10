@@ -107,6 +107,7 @@ export class TradeLedgerService {
 
     return {
       tradeId: trade.id,
+      journalId: trade.id,
       journalName: draft?.journal_name ?? null,
       entryTime: execution.entry_time ?? trade.opened_at,
       ticket: execution.ticket ?? trade.id.slice(0, 12),

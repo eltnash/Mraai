@@ -57,6 +57,7 @@ export interface GatekeeperJournalSummary {
   analysis_period: string;
   active_step: number;
   step_progress: GatekeeperStepProgress;
+  created_at: string;
   updated_at: string;
   archived_at: string | null;
   submitted_at: string | null;

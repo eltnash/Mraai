@@ -17,10 +17,13 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 
 import { ASSET_SYMBOL_OPTIONS } from '../../core/supabase/enum-options';
+import { formatJournalIdShort } from '../../shared/utils/journal-id.utils';
 import { GatekeeperDraftService } from '../gatekeeper/gatekeeper-draft.service';
 import {
   GATEKEEPER_STEP_LABELS,
@@ -28,6 +31,15 @@ import {
   type GatekeeperJournalSummary,
 } from '../gatekeeper/gatekeeper-draft.types';
 import { JournalStepProgressComponent } from './journal-step-progress.component';
+import { sortJournals } from './journal-page.utils';
+import {
+  JOURNAL_SORT_DIR_STORAGE_KEY,
+  JOURNAL_SORT_FIELD_STORAGE_KEY,
+  JOURNAL_VIEW_STORAGE_KEY,
+  type JournalSortDirection,
+  type JournalSortField,
+  type JournalViewMode,
+} from './journal-page.types';
 
 @Component({
   selector: 'app-journal-page',
@@ -40,6 +52,8 @@ import { JournalStepProgressComponent } from './journal-step-progress.component'
     InputTextModule,
     MessageModule,
     ProgressSpinnerModule,
+    SelectButtonModule,
+    SelectModule,
     TagModule,
     ToastModule,
     JournalStepProgressComponent,
@@ -56,7 +70,8 @@ export class JournalPageComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly cdr = inject(ChangeDetectorRef);
 
-  protected readonly journals = signal<GatekeeperJournalSummary[]>([]);
+  private readonly rawJournals = signal<GatekeeperJournalSummary[]>([]);
+
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly showArchived = signal(false);
@@ -67,6 +82,33 @@ export class JournalPageComponent implements OnInit {
   protected readonly renameSaving = signal(false);
   protected readonly stepLabels = GATEKEEPER_STEP_LABELS;
   protected readonly journalNameMaxLength = JOURNAL_NAME_MAX_LENGTH;
+
+  protected readonly viewMode = signal<JournalViewMode>(
+    this.readStoredViewMode(),
+  );
+  protected readonly sortField = signal<JournalSortField>(
+    this.readStoredSortField(),
+  );
+  protected readonly sortDirection = signal<JournalSortDirection>(
+    this.readStoredSortDirection(),
+  );
+
+  protected readonly viewModeOptions = [
+    { label: 'Cards', value: 'cards' as const, icon: 'pi pi-th-large' },
+    { label: 'List', value: 'list' as const, icon: 'pi pi-list' },
+  ];
+
+  protected readonly sortFieldOptions = [
+    { label: 'Date created', value: 'created_at' as const },
+    { label: 'Last updated', value: 'updated_at' as const },
+    { label: 'Trading date', value: 'trading_date' as const },
+    { label: 'Journal name', value: 'journal_name' as const },
+    { label: 'Progress', value: 'progress' as const },
+  ];
+
+  protected readonly journals = computed(() =>
+    sortJournals(this.rawJournals(), this.sortField(), this.sortDirection()),
+  );
 
   private readonly symbolLabels = computed(() => {
     const map = new Map<string, string>();
@@ -79,6 +121,8 @@ export class JournalPageComponent implements OnInit {
   ngOnInit(): void {
     void this.loadJournals();
   }
+
+  protected readonly formatJournalId = formatJournalIdShort;
 
   protected symbolLabel(symbol: string): string {
     return this.symbolLabels().get(symbol) ?? symbol;
@@ -96,6 +140,26 @@ export class JournalPageComponent implements OnInit {
     return journal.completed_at !== null;
   }
 
+  protected sortDirectionLabel(): string {
+    return this.sortDirection() === 'asc' ? 'Ascending' : 'Descending';
+  }
+
+  protected toggleSortDirection(): void {
+    const next = this.sortDirection() === 'asc' ? 'desc' : 'asc';
+    this.sortDirection.set(next);
+    this.persistPreferences();
+  }
+
+  protected onViewModeChange(mode: JournalViewMode): void {
+    this.viewMode.set(mode);
+    this.persistPreferences();
+  }
+
+  protected onSortFieldChange(field: JournalSortField): void {
+    this.sortField.set(field);
+    this.persistPreferences();
+  }
+
   protected toggleShowArchived(): void {
     this.showArchived.update((value) => !value);
     void this.loadJournals();
@@ -107,7 +171,7 @@ export class JournalPageComponent implements OnInit {
 
     try {
       const list = await this.draftService.listJournals({ archivedOnly: this.showArchived() });
-      this.journals.set(list);
+      this.rawJournals.set(list);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Could not load journals');
     } finally {
@@ -245,5 +309,34 @@ export class JournalPageComponent implements OnInit {
       this.actionBusyId.set(null);
       this.cdr.markForCheck();
     }
+  }
+
+  private readStoredViewMode(): JournalViewMode {
+    const value = localStorage.getItem(JOURNAL_VIEW_STORAGE_KEY);
+    return value === 'list' ? 'list' : 'cards';
+  }
+
+  private readStoredSortField(): JournalSortField {
+    const value = localStorage.getItem(JOURNAL_SORT_FIELD_STORAGE_KEY);
+    if (
+      value === 'created_at' ||
+      value === 'updated_at' ||
+      value === 'trading_date' ||
+      value === 'journal_name' ||
+      value === 'progress'
+    ) {
+      return value;
+    }
+    return 'created_at';
+  }
+
+  private readStoredSortDirection(): JournalSortDirection {
+    return localStorage.getItem(JOURNAL_SORT_DIR_STORAGE_KEY) === 'asc' ? 'asc' : 'desc';
+  }
+
+  private persistPreferences(): void {
+    localStorage.setItem(JOURNAL_VIEW_STORAGE_KEY, this.viewMode());
+    localStorage.setItem(JOURNAL_SORT_FIELD_STORAGE_KEY, this.sortField());
+    localStorage.setItem(JOURNAL_SORT_DIR_STORAGE_KEY, this.sortDirection());
   }
 }

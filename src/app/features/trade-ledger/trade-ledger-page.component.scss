@@ -106,7 +106,13 @@
 
 .ledger-table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 1260px;
+
+  &__journal-id {
+    color: #9ca3af;
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+  }
   border-collapse: collapse;
   font-size: 0.75rem;
   color: #e5e7eb;

@@ -202,7 +202,7 @@ export class GatekeeperDraftService {
     let query = this.supabase.client
       .from('gatekeeper_drafts')
       .select(
-        'id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, execution_form, updated_at, archived_at, submitted_at, completed_at, recovered_from_trade',
+        'id, journal_name, trading_date, symbol, session_context, wizard_form, media, ui_state, execution_form, created_at, updated_at, archived_at, submitted_at, completed_at, recovered_from_trade',
       )
       .eq('user_id', user.id);
 
@@ -244,6 +244,7 @@ export class GatekeeperDraftService {
           symbol: row.symbol as AssetSymbol,
           activeStep,
         }),
+        created_at: row.created_at ?? row.updated_at,
         updated_at: row.updated_at,
         archived_at: row.archived_at ?? null,
         submitted_at: row.submitted_at ?? null,
