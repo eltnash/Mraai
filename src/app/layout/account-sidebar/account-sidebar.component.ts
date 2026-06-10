@@ -52,6 +52,7 @@ export class AccountSidebarComponent {
       { label: 'Journal', segment: 'journal', icon: 'pi pi-table', locked },
       { label: 'Trade History', segment: 'trade-history', icon: 'pi pi-list', locked },
       { label: 'Setups', segment: 'setups', icon: 'pi pi-book', locked },
+      { label: 'Gallery', segment: 'gallery', icon: 'pi pi-images', locked },
       { label: 'Edge Lab', segment: 'lab', icon: 'pi pi-sparkles', locked },
     ];
   });

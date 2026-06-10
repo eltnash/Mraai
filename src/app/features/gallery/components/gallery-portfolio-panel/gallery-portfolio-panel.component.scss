@@ -1,0 +1,54 @@
+.gallery-portfolios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+
+  &__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9ca3af;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  &__chip {
+    border: 1px solid var(--dqos-border);
+    border-radius: 999px;
+    background: #12151c;
+    color: #d1d5db;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.65rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+
+    &--active {
+      border-color: rgba(96, 165, 250, 0.55);
+      background: rgba(37, 99, 235, 0.15);
+      color: #93c5fd;
+    }
+
+    &:hover:not(&--active) {
+      border-color: #4b5563;
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #d1d5db;
+    }
+  }
+}

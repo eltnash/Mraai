@@ -1,0 +1,164 @@
+<p-toast position="top-right" />
+<p-confirmDialog />
+
+@if (loading()) {
+  <div class="gallery-page__loading">
+    <p-progressSpinner strokeWidth="4" ariaLabel="Loading gallery" />
+  </div>
+} @else {
+  <header class="gallery-page__header">
+    <div>
+      <h1 class="gallery-page__title">Strategy Gallery</h1>
+      <p class="gallery-page__subtitle">
+        Uploads, diagrams, and winning trade outcome screenshots grouped by auction strategy.
+      </p>
+    </div>
+    <div class="gallery-page__actions">
+      <input #fileInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onFileSelected($event)" />
+      <p-button label="Upload" icon="pi pi-upload" (onClick)="openFilePicker(fileInput)" />
+      <p-button label="Paste" icon="pi pi-clone" [outlined]="true" (onClick)="pasteFromClipboard()" />
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <p-message severity="error" [text]="err" styleClass="gallery-page__error" />
+  }
+
+  <div class="gallery-page__controls">
+    <div class="gallery-page__strategy">
+      <span class="gallery-page__control-label">Strategy</span>
+      <p-selectButton
+        [options]="strategyOptions"
+        [ngModel]="activeStrategy()"
+        (ngModelChange)="activeStrategy.set($event)"
+        optionLabel="label"
+        optionValue="value"
+      />
+    </div>
+
+    <div class="gallery-page__filters">
+      <span class="gallery-page__control-label">Source</span>
+      <p-selectButton
+        [options]="sourceFilterOptions"
+        [ngModel]="sourceFilter()"
+        (ngModelChange)="sourceFilter.set($event)"
+        optionLabel="label"
+        optionValue="value"
+      />
+    </div>
+
+    <div class="gallery-page__search">
+      <span class="gallery-page__control-label">Search</span>
+      <input
+        pInputText
+        type="search"
+        placeholder="Title, journal id, symbol…"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+      />
+    </div>
+  </div>
+
+  <app-gallery-portfolio-panel
+    [portfolios]="portfolios()"
+    [activeStrategy]="activeStrategy()"
+    [selectedPortfolioId]="portfolioFilterId()"
+    [saving]="saving()"
+    (portfolioSelect)="portfolioFilterId.set($event)"
+    (createPortfolio)="createPortfolio($event)"
+  />
+
+  <p class="gallery-page__paste-hint">Tip: paste an image anywhere on this page to upload quickly.</p>
+
+  <app-gallery-grid
+    [items]="filteredItems()"
+    [portfolios]="portfolios()"
+    [currency]="currency()"
+    (itemOpen)="openItem($event)"
+    (rankChange)="setRank($event.item, $event.rank)"
+  />
+
+  @if (filteredItems().length === 0) {
+    <p class="gallery-page__empty">
+      @if (sourceFilter() === 'upload') {
+        No uploaded images for this strategy yet. Upload or paste a diagram to get started.
+      } @else if (sourceFilter() === 'journal') {
+        No winning trade outcome screenshots for this strategy yet. Close profitable trades with outcome charts in Gatekeeper.
+      } @else {
+        No images for this strategy yet. Upload diagrams or add outcome screenshots via Gatekeeper.
+      }
+    </p>
+  }
+}
+
+<app-gallery-lightbox
+  [visible]="lightboxOpen()"
+  [item]="lightboxItem()"
+  [items]="filteredItems()"
+  [comments]="comments()"
+  [portfolios]="portfolios()"
+  [currency]="currency()"
+  [openingJournal]="openingJournal()"
+  (visibleChange)="lightboxOpen.set($event)"
+  (navigate)="lightboxItem.set($event)"
+  (rankChange)="setRank($event.item, $event.rank)"
+  (portfolioChange)="setPortfolio($event.item, $event.portfolioId)"
+  (addComment)="addComment($event)"
+  (updateComment)="updateComment($event)"
+  (deleteComment)="deleteComment($event)"
+  (editItem)="openEdit($event)"
+  (deleteItem)="confirmDelete($event)"
+  (openJournal)="openJournal($event)"
+/>
+
+<app-gallery-upload-dialog
+  [visible]="uploadDialogOpen()"
+  [file]="pendingFile()"
+  [defaultStrategy]="activeStrategy()"
+  [portfolios]="portfolios()"
+  [uploading]="uploading()"
+  (visibleChange)="uploadDialogOpen.set($event)"
+  (confirm)="confirmUpload($event)"
+/>
+
+<p-dialog
+  [visible]="editDialogOpen()"
+  (visibleChange)="!$event && editDialogOpen.set(false)"
+  [modal]="true"
+  header="Edit image"
+  [style]="{ width: 'min(92vw, 480px)' }"
+>
+  <div class="gallery-page__edit-form">
+    <label for="edit-title">Title</label>
+    <input pInputText id="edit-title" [ngModel]="editTitle()" (ngModelChange)="editTitle.set($event)" />
+
+    <label for="edit-caption">Caption</label>
+    <textarea pTextarea id="edit-caption" rows="2" [ngModel]="editCaption()" (ngModelChange)="editCaption.set($event)"></textarea>
+
+    <label for="edit-strategy">Strategy</label>
+    <p-select
+      inputId="edit-strategy"
+      [options]="strategyOptions"
+      [ngModel]="editStrategy()"
+      (ngModelChange)="editStrategy.set($event)"
+      optionLabel="label"
+      optionValue="value"
+      styleClass="gallery-page__select"
+    />
+
+    <label for="edit-portfolio">Portfolio</label>
+    <p-select
+      inputId="edit-portfolio"
+      [options]="editPortfolioOptions()"
+      [ngModel]="editPortfolioId()"
+      (ngModelChange)="editPortfolioId.set($event)"
+      optionLabel="label"
+      optionValue="value"
+      styleClass="gallery-page__select"
+    />
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" [text]="true" (onClick)="editDialogOpen.set(false)" [disabled]="saving()" />
+    <p-button label="Save" (onClick)="saveEdit()" [loading]="saving()" />
+  </ng-template>
+</p-dialog>

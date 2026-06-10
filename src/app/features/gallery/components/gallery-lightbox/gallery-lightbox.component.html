@@ -1,0 +1,137 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="!$event && close()"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(96vw, 1100px)' }"
+  [header]="item()?.title ?? item()?.fileName ?? 'Image detail'"
+>
+  @if (item(); as current) {
+    <div class="gallery-lightbox">
+      <div class="gallery-lightbox__image-pane">
+        <div class="gallery-lightbox__zoom-bar">
+          <p-button icon="pi pi-minus" [text]="true" size="small" (onClick)="zoomOut()" ariaLabel="Zoom out" />
+          <span class="gallery-lightbox__zoom-label">{{ (zoom() * 100) | number: '1.0-0' }}%</span>
+          <p-button icon="pi pi-plus" [text]="true" size="small" (onClick)="zoomIn()" ariaLabel="Zoom in" />
+          <p-button label="Reset" [text]="true" size="small" (onClick)="resetZoom()" />
+        </div>
+        <div class="gallery-lightbox__image-scroll">
+          <img
+            [src]="current.imageUrl"
+            [alt]="current.fileName"
+            [style.transform]="'scale(' + zoom() + ')'"
+            class="gallery-lightbox__image"
+          />
+        </div>
+        <div class="gallery-lightbox__nav">
+          <p-button icon="pi pi-chevron-left" [text]="true" (onClick)="goPrev()" ariaLabel="Previous image" />
+          <p-button icon="pi pi-chevron-right" [text]="true" (onClick)="goNext()" ariaLabel="Next image" />
+        </div>
+      </div>
+
+      <aside class="gallery-lightbox__sidebar">
+        <div class="gallery-lightbox__tags">
+          <p-tag
+            [value]="current.source === 'journal' ? 'From journal' : 'Uploaded'"
+            [severity]="current.source === 'journal' ? 'info' : 'secondary'"
+          />
+          <p-tag
+            [value]="strategyName(current.auctionStrategy)"
+            [severity]="strategySeverity(current.auctionStrategy)"
+          />
+        </div>
+
+        @if (current.source === 'journal') {
+          <p class="gallery-lightbox__hint">
+            Edit or remove this image in Gatekeeper outcome step. Changes here are limited to rank, portfolio, and comments.
+          </p>
+          @if (current.symbol && current.tradingDate) {
+            <p class="gallery-lightbox__trade-meta">
+              {{ current.symbol }} · {{ current.tradingDate | date: 'mediumDate' }}
+              @if (current.netProfit != null) {
+                · +{{ current.netProfit | currency: currency() }}
+              }
+            </p>
+          }
+          <p-button
+            label="Open in Gatekeeper"
+            icon="pi pi-external-link"
+            [loading]="openingJournal()"
+            (onClick)="openJournal.emit(current)"
+          />
+        } @else {
+          <p-button label="Edit details" icon="pi pi-pencil" [outlined]="true" (onClick)="editItem.emit(current)" />
+          <p-button
+            label="Delete"
+            icon="pi pi-trash"
+            severity="danger"
+            [outlined]="true"
+            (onClick)="deleteItem.emit(current)"
+          />
+        }
+
+        <div class="gallery-lightbox__field">
+          <span class="gallery-lightbox__label">Rank</span>
+          <div class="gallery-lightbox__stars">
+            @for (star of stars(); track star) {
+              <button
+                type="button"
+                class="gallery-lightbox__star"
+                [class.gallery-lightbox__star--active]="(current.rankScore ?? 0) >= star"
+                (click)="setRank(star)"
+              >
+                <i class="pi" [class.pi-star-fill]="(current.rankScore ?? 0) >= star" [class.pi-star]="(current.rankScore ?? 0) < star"></i>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="gallery-lightbox__field">
+          <label class="gallery-lightbox__label" for="gallery-portfolio-select">Portfolio</label>
+          <p-select
+            inputId="gallery-portfolio-select"
+            [options]="portfolioOptions()"
+            [ngModel]="current.portfolioId"
+            (ngModelChange)="onPortfolioChange($event)"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="No portfolio"
+            styleClass="gallery-lightbox__select"
+          />
+        </div>
+
+        <section class="gallery-lightbox__comments">
+          <h3 class="gallery-lightbox__comments-title">Comments</h3>
+          @for (comment of itemComments(); track comment.id) {
+            <article class="gallery-lightbox__comment">
+              @if (editingCommentId() === comment.id) {
+                <textarea pTextarea rows="3" [ngModel]="editingBody()" (ngModelChange)="editingBody.set($event)"></textarea>
+                <div class="gallery-lightbox__comment-actions">
+                  <p-button label="Save" size="small" (onClick)="saveEditComment()" />
+                  <p-button label="Cancel" size="small" [text]="true" (onClick)="cancelEditComment()" />
+                </div>
+              } @else {
+                <p class="gallery-lightbox__comment-body">{{ comment.body }}</p>
+                <div class="gallery-lightbox__comment-meta">
+                  <span>{{ comment.createdAt | date: 'short' }}</span>
+                  @if (comment.userId === currentUserId()) {
+                    <button type="button" class="gallery-lightbox__comment-link" (click)="startEditComment(comment)">Edit</button>
+                    <button type="button" class="gallery-lightbox__comment-link gallery-lightbox__comment-link--danger" (click)="removeComment(comment.id)">Delete</button>
+                  }
+                </div>
+              }
+            </article>
+          }
+          <textarea
+            pTextarea
+            rows="3"
+            placeholder="Add a review or note…"
+            [ngModel]="newComment()"
+            (ngModelChange)="newComment.set($event)"
+          ></textarea>
+          <p-button label="Post comment" size="small" (onClick)="submitComment()" [disabled]="!newComment().trim()" />
+        </section>
+      </aside>
+    </div>
+  }
+</p-dialog>

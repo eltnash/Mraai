@@ -72,6 +72,12 @@ export const routes: Routes = [
             },
           },
           {
+            path: 'gallery',
+            canActivate: [accountConfigGuard],
+            loadComponent: () =>
+              import('./features/gallery/gallery-page.component').then((m) => m.GalleryPageComponent),
+          },
+          {
             path: 'lab',
             canActivate: [accountConfigGuard],
             component: FeaturePlaceholderComponent,

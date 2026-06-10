@@ -1,0 +1,43 @@
+<div class="gallery-portfolios">
+  <span class="gallery-portfolios__label">Portfolio</span>
+  <div class="gallery-portfolios__chips">
+    <button
+      type="button"
+      class="gallery-portfolios__chip"
+      [class.gallery-portfolios__chip--active]="selectedPortfolioId() === null"
+      (click)="portfolioSelect.emit(null)"
+    >
+      All
+    </button>
+    @for (portfolio of strategyPortfolios(); track portfolio.id) {
+      <button
+        type="button"
+        class="gallery-portfolios__chip"
+        [class.gallery-portfolios__chip--active]="selectedPortfolioId() === portfolio.id"
+        (click)="portfolioSelect.emit(portfolio.id)"
+      >
+        {{ portfolio.name }}
+      </button>
+    }
+    <p-button label="New" icon="pi pi-plus" size="small" [text]="true" (onClick)="openCreate()" />
+  </div>
+</div>
+
+<p-dialog
+  [visible]="createOpen()"
+  (visibleChange)="!$event && createOpen.set(false)"
+  [modal]="true"
+  header="New portfolio"
+  [style]="{ width: 'min(92vw, 420px)' }"
+>
+  <div class="gallery-portfolios__form">
+    <label for="portfolio-name">Name</label>
+    <input pInputText id="portfolio-name" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+    <label for="portfolio-desc">Description (optional)</label>
+    <textarea pTextarea id="portfolio-desc" rows="2" [ngModel]="newDescription()" (ngModelChange)="newDescription.set($event)"></textarea>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" [text]="true" (onClick)="createOpen.set(false)" />
+    <p-button label="Create" (onClick)="submitCreate()" [loading]="saving()" [disabled]="!newName().trim()" />
+  </ng-template>
+</p-dialog>

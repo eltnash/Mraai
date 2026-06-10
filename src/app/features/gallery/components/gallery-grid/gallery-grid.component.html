@@ -1,0 +1,45 @@
+@if (items().length > 0) {
+  <div class="gallery-grid">
+    @for (item of items(); track item.id) {
+      <button type="button" class="gallery-card" (click)="openItem(item)">
+        <div class="gallery-card__image-wrap">
+          <img [src]="item.imageUrl" [alt]="item.fileName" loading="lazy" />
+          <span class="gallery-card__badge" [class.gallery-card__badge--journal]="item.source === 'journal'">
+            {{ item.source === 'journal' ? 'Journal' : 'Upload' }}
+          </span>
+        </div>
+        <div class="gallery-card__body">
+          <span class="gallery-card__title">{{ displayTitle(item) }}</span>
+          <div class="gallery-card__stars" role="group" aria-label="Rank">
+            @for (star of stars(); track star) {
+              <button
+                type="button"
+                class="gallery-card__star"
+                [class.gallery-card__star--active]="(item.rankScore ?? 0) >= star"
+                [attr.aria-label]="'Rank ' + star"
+                (click)="setRank(item, star, $event)"
+              >
+                <i class="pi" [class.pi-star-fill]="(item.rankScore ?? 0) >= star" [class.pi-star]="(item.rankScore ?? 0) < star"></i>
+              </button>
+            }
+          </div>
+          <div class="gallery-card__meta">
+            @if (portfolioName(item.portfolioId); as portfolio) {
+              <span class="gallery-card__portfolio">{{ portfolio }}</span>
+            }
+            @if (item.commentCount > 0) {
+              <span class="gallery-card__comments">
+                <i class="pi pi-comment"></i> {{ item.commentCount }}
+              </span>
+            }
+            @if (item.source === 'journal' && item.netProfit != null) {
+              <span class="gallery-card__pnl data-mono">+{{ item.netProfit | number: '1.2-2' }}</span>
+            }
+          </div>
+        </div>
+      </button>
+    }
+  </div>
+} @else {
+  <p class="gallery-grid__empty">No images match the current filters.</p>
+}

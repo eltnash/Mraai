@@ -1,0 +1,68 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  header="Add to gallery"
+  [style]="{ width: 'min(92vw, 480px)' }"
+>
+  @if (file(); as selectedFile) {
+    <p class="gallery-upload__file">{{ selectedFile.name }}</p>
+  }
+
+  <div class="gallery-upload__field">
+    <label for="gallery-upload-strategy">Strategy family</label>
+    <p-select
+      inputId="gallery-upload-strategy"
+      [options]="strategyOptions"
+      [ngModel]="auctionStrategy()"
+      (ngModelChange)="onStrategyChange($event)"
+      optionLabel="label"
+      optionValue="value"
+      styleClass="gallery-upload__select"
+    />
+  </div>
+
+  <div class="gallery-upload__field">
+    <label for="gallery-upload-title">Title (optional)</label>
+    <input pInputText id="gallery-upload-title" [ngModel]="title()" (ngModelChange)="title.set($event)" />
+  </div>
+
+  <div class="gallery-upload__field">
+    <label for="gallery-upload-caption">Caption (optional)</label>
+    <textarea pTextarea id="gallery-upload-caption" rows="2" [ngModel]="caption()" (ngModelChange)="caption.set($event)"></textarea>
+  </div>
+
+  <div class="gallery-upload__field">
+    <label for="gallery-upload-portfolio">Portfolio (optional)</label>
+    <p-select
+      inputId="gallery-upload-portfolio"
+      [options]="portfolioOptions()"
+      [ngModel]="portfolioId()"
+      (ngModelChange)="portfolioId.set($event)"
+      optionLabel="label"
+      optionValue="value"
+      styleClass="gallery-upload__select"
+    />
+  </div>
+
+  <div class="gallery-upload__field">
+    <span class="gallery-upload__label">Initial rank (optional)</span>
+    <div class="gallery-upload__stars">
+      @for (star of stars(); track star) {
+        <button
+          type="button"
+          class="gallery-upload__star"
+          [class.gallery-upload__star--active]="(rankScore() ?? 0) >= star"
+          (click)="setRank(star)"
+        >
+          <i class="pi" [class.pi-star-fill]="(rankScore() ?? 0) >= star" [class.pi-star]="(rankScore() ?? 0) < star"></i>
+        </button>
+      }
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" [text]="true" (onClick)="visibleChange.emit(false)" [disabled]="uploading()" />
+    <p-button label="Upload" icon="pi pi-upload" (onClick)="submit()" [loading]="uploading()" />
+  </ng-template>
+</p-dialog>

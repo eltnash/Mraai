@@ -1,0 +1,121 @@
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.85rem;
+
+  &__empty {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+}
+
+.gallery-card {
+  border: 1px solid var(--dqos-border);
+  border-radius: 8px;
+  background: #12151c;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s;
+
+  &:hover {
+    border-color: rgba(96, 165, 250, 0.45);
+    transform: translateY(-2px);
+  }
+
+  &__image-wrap {
+    position: relative;
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    display: block;
+    background: #0d0e12;
+  }
+
+  &__badge {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(17, 24, 39, 0.85);
+    color: #9ca3af;
+
+    &--journal {
+      color: #60a5fa;
+      border: 1px solid rgba(96, 165, 250, 0.35);
+    }
+  }
+
+  &__body {
+    padding: 0.55rem 0.65rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  &__title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #e5e7eb;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__stars {
+    display: flex;
+    gap: 0.1rem;
+  }
+
+  &__star {
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: #4b5563;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+
+    &--active,
+    &:hover {
+      color: #fbbf24;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.7rem;
+    color: #6b7280;
+  }
+
+  &__portfolio {
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: rgba(55, 65, 81, 0.5);
+    color: #d1d5db;
+  }
+
+  &__comments {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  &__pnl {
+    color: #34d399;
+    font-weight: 600;
+  }
+}

@@ -1,0 +1,102 @@
+.gallery-page {
+  &__loading {
+    display: flex;
+    justify-content: center;
+    padding: 3rem;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--dqos-border);
+    border-radius: 8px;
+    background: #12151c;
+  }
+
+  &__title {
+    margin: 0 0 0.25rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 0.875rem;
+    max-width: 36rem;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__error {
+    margin-bottom: 1rem;
+    width: 100%;
+  }
+
+  &__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--dqos-border);
+    border-radius: 8px;
+    background: #12151c;
+  }
+
+  &__strategy,
+  &__filters,
+  &__search {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  &__search input {
+    min-width: 220px;
+  }
+
+  &__control-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9ca3af;
+  }
+
+  &__paste-hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  &__empty {
+    margin: 1rem 0 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  &__edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #d1d5db;
+    }
+  }
+
+  &__select {
+    width: 100%;
+  }
+}
