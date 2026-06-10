@@ -25,6 +25,10 @@
   tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 
   &__name { font-weight: 600; color: #e5e7eb; }
+
+  &__pair {
+    background: rgba(99, 102, 241, 0.04);
+  }
   &__dim, &__conf { color: #9ca3af; font-size: 0.75rem; }
 
   .pos { color: #34d399; }

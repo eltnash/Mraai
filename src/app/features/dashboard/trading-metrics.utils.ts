@@ -7,6 +7,11 @@ import {
   locationLabel,
   strategyLabel,
 } from './dashboard-labels.utils';
+import {
+  computeNoteTagSetupRows,
+  computeTagPairSetupRows,
+  extractJournalTagsFromAudit,
+} from './note-tag-analytics.utils';
 import type {
   ConfidenceLevel,
   EdgeAssessment,
@@ -150,6 +155,7 @@ export function enrichTrades(
       computed_r: computeTradeR(trade),
       process_score,
       process_grade: gradeFromScore(process_score),
+      journal_tags: extractJournalTagsFromAudit(audit),
     };
   });
 }
@@ -435,10 +441,19 @@ export function computeSetupAnalytics(trades: EnrichedTradeRow[]): SetupAnalytic
     ...groupSetupAnalytics(trades, 'location', (t) => t.location, (v) => locationLabel(v)),
     ...groupSetupAnalytics(trades, 'behavior', (t) => t.behavior, (v) => behaviorLabel(v)),
     ...groupSetupAnalytics(trades, 'confirmation', (t) => t.confirmation, (v) => confirmationLabel(v)),
-    ...groupSetupAnalytics(trades, 'strategy', (t) => t.auction_strategy, (v) => strategyLabel(v)),
     ...groupSetupAnalytics(trades, 'day_type', (t) => t.day_type, (v) => dayTypeLabel(v)),
+    ...computeNoteTagSetupRows(trades),
+    ...computeTagPairSetupRows(trades),
   ];
-  return rows.sort((a, b) => (b.expectancyR ?? -999) - (a.expectancyR ?? -999));
+  return rows.sort((a, b) => {
+    if (a.dimension === 'tag_pair' && b.dimension === 'tag_pair') {
+      return (b.pairCooccurrence ?? 0) - (a.pairCooccurrence ?? 0);
+    }
+    if (a.dimension === 'note_tag' && b.dimension === 'note_tag') {
+      return (b.tagFrequencyPct ?? 0) - (a.tagFrequencyPct ?? 0);
+    }
+    return (b.expectancyR ?? -999) - (a.expectancyR ?? -999);
+  });
 }
 
 export function discoverEdgePatterns(trades: EnrichedTradeRow[]): EdgePatternRow[] {

@@ -4,10 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
 
-import type { SetupAnalyticsRow } from '../../dashboard.types';
+import type { SetupAnalyticsRow, SetupDimension } from '../../dashboard.types';
 import { confidenceLabel, edgeStatusLabel } from '../../trading-metrics.utils';
 
-type DimFilter = 'all' | SetupAnalyticsRow['dimension'];
+type DimFilter = 'all' | SetupDimension;
 
 @Component({
   selector: 'app-setup-analytics-section',
@@ -26,6 +26,8 @@ export class SetupAnalyticsSectionComponent {
     { label: 'Behavior', value: 'behavior' as DimFilter },
     { label: 'Confirmation', value: 'confirmation' as DimFilter },
     { label: 'Day type', value: 'day_type' as DimFilter },
+    { label: 'Note tags', value: 'note_tag' as DimFilter },
+    { label: 'Tag pairs', value: 'tag_pair' as DimFilter },
   ];
 
   protected readonly filtered = computed(() => {
@@ -36,4 +38,11 @@ export class SetupAnalyticsSectionComponent {
 
   protected readonly statusLabel = edgeStatusLabel;
   protected readonly confidenceLabel = confidenceLabel;
+
+  protected dimensionLabel(row: SetupAnalyticsRow): string {
+    if (row.dimension === 'note_tag' || row.dimension === 'tag_pair') {
+      return row.pillarSource ?? row.dimension;
+    }
+    return row.dimension.replace('_', ' ');
+  }
 }

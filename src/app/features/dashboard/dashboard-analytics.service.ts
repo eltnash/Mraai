@@ -67,7 +67,7 @@ export class DashboardAnalyticsService {
     const { data, error } = await this.supabase.client
       .from('execution_audits')
       .select(
-        'trade_id, location, behavior, confirmation, invalidation_level, invalidation_price, pillar_journals',
+        'trade_id, location, behavior, confirmation, invalidation_level, invalidation_price, pillar_journals, htf_context',
       )
       .in('trade_id', tradeIds);
 

@@ -3,8 +3,10 @@ import type {
   AuctionStrategy,
   ConfirmationTrigger,
   DayType,
+  HtfContextSnapshot,
   MarketBehavior,
   PillarJournalsSnapshot,
+  PillarStepKey,
   TradeDirection,
 } from '../../core/models/database.types';
 
@@ -16,6 +18,13 @@ export type EdgeStatus = 'insufficient_data' | 'no_edge' | 'possible_edge' | 'po
 export type StrategyHealthStatus = 'growing_edge' | 'stable_edge' | 'deteriorating_edge' | 'no_edge';
 
 export type ProcessGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+export interface TradeJournalTag {
+  label: string;
+  normalized: string;
+  source: PillarStepKey | 'htf';
+  htfTimeframe?: string;
+}
 
 export interface RawTradeRow {
   id: string;
@@ -62,6 +71,7 @@ export interface EnrichedTradeRow {
   invalidation_price: number | null;
   process_score: number;
   process_grade: ProcessGrade;
+  journal_tags: TradeJournalTag[];
 }
 
 export interface EdgeAssessment {
@@ -95,8 +105,17 @@ export interface RollingMetricPoint {
   value: number;
 }
 
+export type SetupDimension =
+  | 'location'
+  | 'behavior'
+  | 'confirmation'
+  | 'strategy'
+  | 'day_type'
+  | 'note_tag'
+  | 'tag_pair';
+
 export interface SetupAnalyticsRow {
-  dimension: 'location' | 'behavior' | 'confirmation' | 'strategy' | 'day_type';
+  dimension: SetupDimension;
   key: string;
   label: string;
   tradeCount: number;
@@ -107,6 +126,12 @@ export interface SetupAnalyticsRow {
   avgR: number | null;
   confidenceLevel: ConfidenceLevel;
   edgeStatus: EdgeStatus;
+  /** Pillar or HTF step the tag was created on. */
+  pillarSource?: string;
+  /** Share of strategy trades containing this tag. */
+  tagFrequencyPct?: number;
+  /** Trades where both tags in a pair appear together. */
+  pairCooccurrence?: number;
 }
 
 export interface EdgePatternRow {
@@ -212,4 +237,5 @@ export interface ExecutionAuditRow {
   invalidation_level: string | null;
   invalidation_price: number | null;
   pillar_journals: PillarJournalsSnapshot | null;
+  htf_context: HtfContextSnapshot | null;
 }

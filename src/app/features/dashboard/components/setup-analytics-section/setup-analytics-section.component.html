@@ -3,7 +3,9 @@
     <div>
       <span class="dash-section__eyebrow">Section 3</span>
       <h2 class="dash-section__title">Setup Analytics</h2>
-      <p class="dash-section__subtitle">Within the selected strategy — locations, behaviors, and confirmations ranked by expectancy.</p>
+      <p class="dash-section__subtitle">
+        Enum setups plus your tagged journal keywords — ranked by expectancy and co-occurrence across trades.
+      </p>
     </div>
     <p-selectButton
       [options]="filterOptions"
@@ -19,9 +21,10 @@
       <table class="setup-table">
         <thead>
           <tr>
-            <th>Setup</th>
-            <th>Dimension</th>
+            <th>Setup / tag</th>
+            <th>Source</th>
             <th>Trades</th>
+            <th>Frequency</th>
             <th>Win rate</th>
             <th>Expectancy</th>
             <th>PF</th>
@@ -31,10 +34,19 @@
         </thead>
         <tbody>
           @for (row of filtered(); track row.key + row.dimension) {
-            <tr>
+            <tr [class.setup-table__pair]="row.dimension === 'tag_pair'">
               <td class="setup-table__name">{{ row.label }}</td>
-              <td><span class="setup-table__dim">{{ row.dimension }}</span></td>
+              <td><span class="setup-table__dim">{{ dimensionLabel(row) }}</span></td>
               <td class="data-mono">{{ row.tradeCount }}</td>
+              <td class="data-mono">
+                @if (row.dimension === 'tag_pair' && row.pairCooccurrence != null) {
+                  {{ row.pairCooccurrence }}× together
+                } @else if (row.tagFrequencyPct != null) {
+                  {{ row.tagFrequencyPct | percent: '1.0-0' }}
+                } @else {
+                  —
+                }
+              </td>
               <td class="data-mono">{{ row.winRate | percent: '1.1-1' }}</td>
               <td class="data-mono" [class.pos]="(row.expectancyR ?? 0) > 0" [class.neg]="(row.expectancyR ?? 0) < 0">
                 {{ row.expectancyR != null ? (row.expectancyR | number: '1.2-2') + 'R' : '—' }}
@@ -48,6 +60,8 @@
       </table>
     </div>
   } @else {
-    <p class="dash-empty">Record closed trades with pillar data in Gatekeeper to rank setups.</p>
+    <p class="dash-empty">
+      Tag keywords in your journal notes (Location, Behavior, Confirmation, Invalidation, HTF, Outcome) to see them ranked here.
+    </p>
   }
 </section>
