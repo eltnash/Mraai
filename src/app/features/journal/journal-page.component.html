@@ -20,36 +20,38 @@
 
 @if (!loading() && journals().length > 0) {
   <div class="journal-toolbar">
-    <div class="journal-toolbar__group">
-      <span class="journal-toolbar__label">View</span>
+    <div class="journal-toolbar__field">
+      <span class="journal-toolbar__field-label" id="journal-view-label">View</span>
       <p-selectbutton
         [options]="viewModeOptions"
         [ngModel]="viewMode()"
         (ngModelChange)="onViewModeChange($event)"
         optionLabel="label"
         optionValue="value"
-        aria-label="Journal layout"
+        aria-labelledby="journal-view-label"
       />
     </div>
-    <div class="journal-toolbar__group">
-      <span class="journal-toolbar__label">Sort by</span>
-      <p-select
-        [options]="sortFieldOptions"
-        [ngModel]="sortField()"
-        (ngModelChange)="onSortFieldChange($event)"
-        optionLabel="label"
-        optionValue="value"
-        styleClass="journal-toolbar__select"
-        ariaLabel="Sort field"
-      />
-      <p-button
-        type="button"
-        [label]="sortDirectionLabel()"
-        [icon]="sortDirection() === 'asc' ? 'pi pi-sort-amount-up' : 'pi pi-sort-amount-down'"
-        severity="secondary"
-        [outlined]="true"
-        (onClick)="toggleSortDirection()"
-      />
+    <div class="journal-toolbar__field">
+      <span class="journal-toolbar__field-label" id="journal-sort-label">Sort by</span>
+      <div class="journal-toolbar__field-row">
+        <p-select
+          [options]="sortFieldOptions"
+          [ngModel]="sortField()"
+          (ngModelChange)="onSortFieldChange($event)"
+          optionLabel="label"
+          optionValue="value"
+          styleClass="journal-toolbar__select"
+          ariaLabelledBy="journal-sort-label"
+        />
+        <p-button
+          type="button"
+          [label]="sortDirectionLabel()"
+          [icon]="sortDirection() === 'asc' ? 'pi pi-sort-amount-up' : 'pi pi-sort-amount-down'"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="toggleSortDirection()"
+        />
+      </div>
     </div>
   </div>
 }
