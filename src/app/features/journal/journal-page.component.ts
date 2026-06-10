@@ -24,7 +24,12 @@ import { ToastModule } from 'primeng/toast';
 
 import { ASSET_SYMBOL_OPTIONS } from '../../core/supabase/enum-options';
 import { formatJournalIdShort } from '../../shared/utils/journal-id.utils';
+import {
+  auctionStrategyLabel,
+  auctionStrategyTagSeverity,
+} from '../gatekeeper/auction-playbook.utils';
 import { GatekeeperDraftService } from '../gatekeeper/gatekeeper-draft.service';
+import type { AuctionStrategy } from '../../core/models/database.types';
 import {
   GATEKEEPER_STEP_LABELS,
   JOURNAL_NAME_MAX_LENGTH,
@@ -130,6 +135,14 @@ export class JournalPageComponent implements OnInit {
 
   protected stepLabel(stepNumber: number): string {
     return this.stepLabels[Math.max(0, Math.min(stepNumber - 1, this.stepLabels.length - 1))];
+  }
+
+  protected strategyLabel(strategy: AuctionStrategy | null): string {
+    return strategy ? auctionStrategyLabel(strategy) : '';
+  }
+
+  protected strategyTagSeverity(strategy: AuctionStrategy): 'info' | 'success' {
+    return auctionStrategyTagSeverity(strategy);
   }
 
   protected isArchived(journal: GatekeeperJournalSummary): boolean {

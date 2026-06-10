@@ -11,7 +11,9 @@ import { MessageModule } from 'primeng/message';
 import { PaginatorModule, type PaginatorState } from 'primeng/paginator';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
+import { auctionStrategyShortLabel } from '../gatekeeper/auction-playbook.utils';
 import { GatekeeperDraftService } from '../gatekeeper/gatekeeper-draft.service';
+import type { AuctionStrategy } from '../../core/models/database.types';
 import { formatJournalIdShort } from '../../shared/utils/journal-id.utils';
 import { TradeLedgerService } from './trade-ledger.service';
 import {
@@ -51,6 +53,10 @@ export class TradeLedgerPageComponent implements OnInit {
   protected readonly formatLedgerPrice = formatLedgerPrice;
   protected readonly formatLedgerVolume = formatLedgerVolume;
   protected readonly formatLedgerMoney = formatLedgerMoney;
+
+  protected formatStrategy(strategy: AuctionStrategy | null): string {
+    return strategy ? auctionStrategyShortLabel(strategy) : '—';
+  }
 
   protected readonly pageTotals = computed((): TradeLedgerPageTotals => {
     return this.rows().reduce(

@@ -87,6 +87,10 @@ export class GatekeeperSubmitService {
       throw new Error('Retest required — the first test provides context, not execution');
     }
 
+    if (!relaxed && !form.behavior.auction_strategy) {
+      throw new Error('Select your auction read (rejection or acceptance at the level) on the Behavior step');
+    }
+
     const draftId = this.draftService.activeDraftId();
     if (!draftId) {
       throw new Error('No saved Gatekeeper session — refresh and try again');
@@ -114,6 +118,7 @@ export class GatekeeperSubmitService {
         symbol: payload.trade.symbol,
         direction: payload.trade.direction,
         day_type: payload.trade.day_type,
+        auction_strategy: payload.trade.auction_strategy,
         entry_price: payload.trade.entry_price,
         stop_price: payload.trade.stop_price,
         size: payload.trade.size,

@@ -1,8 +1,11 @@
+import type { AuctionStrategy } from '../../core/models/database.types';
+
 export interface TradeLedgerRow {
   tradeId: string;
   /** Same as tradeId when a journal session exists — shown in Trade History and Journal. */
   journalId: string;
   journalName: string | null;
+  auctionStrategy: AuctionStrategy | null;
   entryTime: string | null;
   ticket: string | null;
   side: 'buy' | 'sell';

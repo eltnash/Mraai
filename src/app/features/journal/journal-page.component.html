@@ -164,6 +164,12 @@
             <td class="data-mono">{{ journal.step_progress.progressPct }}%</td>
             <td>
               <div class="journal-table__status">
+                @if (journal.auction_strategy; as strategy) {
+                  <p-tag
+                    [value]="strategyLabel(strategy)"
+                    [severity]="strategyTagSeverity(strategy)"
+                  />
+                }
                 @if (journal.recovered_from_trade) {
                   <p-tag value="Recovered" severity="warn" />
                 }
@@ -271,6 +277,12 @@
           </p>
           <app-journal-step-progress [progress]="journal.step_progress" />
           <div class="journal-card__tags">
+            @if (journal.auction_strategy; as strategy) {
+              <p-tag
+                [value]="strategyLabel(strategy)"
+                [severity]="strategyTagSeverity(strategy)"
+              />
+            }
             <p-tag
               [value]="
                 isCompleted(journal)

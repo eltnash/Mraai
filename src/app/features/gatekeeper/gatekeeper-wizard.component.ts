@@ -20,10 +20,16 @@ import { TagModule } from 'primeng/tag';
 import { MessageService } from 'primeng/api';
 
 import { environment } from '../../../environments/environment';
-import type { AnalyzedTimeframe, AuctionLocation, DayType, PillarStepKey } from '../../core/models/database.types';
+import type {
+  AnalyzedTimeframe,
+  AuctionStrategy,
+  DayType,
+  PillarStepKey,
+} from '../../core/models/database.types';
 import {
   ANALYZED_TIMEFRAME_KEYS,
   ANALYZED_TIMEFRAME_OPTIONS,
+  AUCTION_STRATEGY_OPTIONS,
   DAY_TYPE_OPTIONS,
   LOCATION_PILLAR_OPTIONS,
 } from '../../core/supabase/enum-options';
@@ -38,13 +44,15 @@ import {
   getPlaybookBehaviorOptions,
   getPlaybookConfirmationOptions,
   formatLocationLabels,
+  auctionStrategyLabel,
   invalidationPlaceholder,
-  playbookDescription,
-  playbookForDayType,
+  playbookDescriptionForStrategy,
+  playbookForAuctionStrategy,
   playbookLabel,
   playbookTagSeverity,
   type AuctionPlaybook,
 } from './auction-playbook.utils';
+import { defaultGatekeeperFormValue } from './gatekeeper-draft.mapper';
 import { createGatekeeperForm, syncGatekeeperFormValidators } from './gatekeeper-form.factory';
 import type { ExecutionPillarStepKey, GatekeeperFormValue, GatekeeperStepKey } from './gatekeeper-form.types';
 import type { ExecutionFormValue, GatekeeperSubmitResult } from './execution-block.types';
@@ -137,9 +145,11 @@ export class GatekeeperWizardComponent {
   protected readonly timeframeOptions = ANALYZED_TIMEFRAME_OPTIONS;
   protected readonly timeframeKeys = ANALYZED_TIMEFRAME_KEYS;
   protected readonly dayTypeOptions = DAY_TYPE_OPTIONS;
+  protected readonly auctionStrategyOptions = AUCTION_STRATEGY_OPTIONS;
 
   protected readonly playbookLabel = playbookLabel;
-  protected readonly playbookDescription = playbookDescription;
+  protected readonly playbookDescriptionForStrategy = playbookDescriptionForStrategy;
+  protected readonly auctionStrategyLabel = auctionStrategyLabel;
   protected readonly playbookTagSeverity = playbookTagSeverity;
   protected readonly auctionTypeProfileReminder = AUCTION_TYPE_PROFILE_REMINDER;
   protected readonly dayTypeLabel = dayTypeLabel;
@@ -235,9 +245,14 @@ export class GatekeeperWizardComponent {
     return (this.form.getRawValue() as GatekeeperFormValue).auction_type.day_type;
   });
 
+  protected readonly selectedAuctionStrategy = computed((): AuctionStrategy | null => {
+    this.formTick();
+    return (this.form.getRawValue() as GatekeeperFormValue).behavior.auction_strategy;
+  });
+
   protected readonly activePlaybook = computed((): AuctionPlaybook | null => {
-    const dayType = this.selectedDayType();
-    return dayType ? playbookForDayType(dayType) : null;
+    const strategy = this.selectedAuctionStrategy();
+    return strategy ? playbookForAuctionStrategy(strategy) : null;
   });
 
   protected readonly locationPillarOptions = LOCATION_PILLAR_OPTIONS;
@@ -300,7 +315,9 @@ export class GatekeeperWizardComponent {
         key: 'behavior',
         label: `Behavior (${pillarFocusLabel(value.behavior.focus_timeframe)})`,
         valid: this.isStepValid('behavior'),
-        value: value.behavior.behavior,
+        value: value.behavior.auction_strategy
+          ? `${auctionStrategyLabel(value.behavior.auction_strategy)}${value.behavior.behavior ? ` · ${value.behavior.behavior}` : ''}`
+          : null,
       },
       {
         key: 'confirmation',
@@ -343,11 +360,11 @@ export class GatekeeperWizardComponent {
       this.cdr.markForCheck();
     });
 
-    this.stepGroup('auction_type')
-      .get('day_type')
-      ?.valueChanges.subscribe((dayType) => {
-        if (dayType) {
-          this.clearIncompatiblePillarSelections(dayType);
+    this.stepGroup('behavior')
+      .get('auction_strategy')
+      ?.valueChanges.subscribe((strategy) => {
+        if (strategy) {
+          this.clearDownstreamFromStrategy(strategy);
         }
       });
 
@@ -490,6 +507,7 @@ export class GatekeeperWizardComponent {
 
     if (key === 'confirmation') {
       return (
+        this.isStepValid('behavior') &&
         this.stepGroup('confirmation').valid &&
         this.screenshotDrafts.hasDraft({ kind: 'pillar', id: 'confirmation' })
       );
@@ -497,6 +515,7 @@ export class GatekeeperWizardComponent {
 
     if (key === 'invalidation') {
       return (
+        this.isStepValid('confirmation') &&
         this.stepGroup('invalidation').valid &&
         this.screenshotDrafts.hasDraft({ kind: 'pillar', id: 'invalidation' })
       );
@@ -749,29 +768,48 @@ export class GatekeeperWizardComponent {
     });
   }
 
-  private clearIncompatiblePillarSelections(dayType: DayType): void {
-    const playbook = playbookForDayType(dayType);
-    const locationValues = new Set(LOCATION_PILLAR_OPTIONS.map((option) => option.value));
+  private clearDownstreamFromStrategy(strategy: AuctionStrategy): void {
+    const playbook = playbookForAuctionStrategy(strategy);
     const behaviorValues = new Set(getPlaybookBehaviorOptions(playbook).map((option) => option.value));
-    const confirmationValues = new Set(
-      getPlaybookConfirmationOptions(playbook).map((option) => option.value),
-    );
-
-    const locations = (this.stepGroup('location').get('locations')?.value ?? []) as AuctionLocation[];
-    const filtered = locations.filter((location) => locationValues.has(location));
-    if (filtered.length !== locations.length) {
-      this.stepGroup('location').patchValue({ locations: filtered }, { emitEvent: true });
-    }
+    const defaults = defaultGatekeeperFormValue();
 
     const behavior = this.stepGroup('behavior').get('behavior')?.value;
     if (behavior && !behaviorValues.has(behavior)) {
-      this.stepGroup('behavior').patchValue({ behavior: null }, { emitEvent: true });
+      this.stepGroup('behavior').patchValue({ behavior: null }, { emitEvent: false });
     }
 
-    const confirmation = this.stepGroup('confirmation').get('confirmation')?.value;
-    if (confirmation && !confirmationValues.has(confirmation)) {
-      this.stepGroup('confirmation').patchValue({ confirmation: null }, { emitEvent: true });
+    this.stepGroup('confirmation').patchValue(
+      {
+        focus_timeframe: defaults.confirmation.focus_timeframe,
+        notes_content: { ...defaults.confirmation.notes_content },
+        confirmation: null,
+      },
+      { emitEvent: false },
+    );
+    this.stepGroup('invalidation').patchValue(
+      {
+        focus_timeframe: defaults.invalidation.focus_timeframe,
+        notes_content: { ...defaults.invalidation.notes_content },
+        invalidation_level: defaults.invalidation.invalidation_level,
+        invalidation_price: defaults.invalidation.invalidation_price,
+      },
+      { emitEvent: false },
+    );
+    this.stepGroup('outcome').patchValue(
+      {
+        focus_timeframe: defaults.outcome.focus_timeframe,
+        notes_content: { ...defaults.outcome.notes_content },
+      },
+      { emitEvent: false },
+    );
+
+    for (const step of ['confirmation', 'invalidation', 'outcome'] as const) {
+      this.screenshotDrafts.removeScope({ kind: 'pillar', id: step });
+      void this.draftService.clearScopeMedia({ kind: 'pillar', id: step });
     }
+
+    this.formTick.update((n) => n + 1);
+    this.cdr.markForCheck();
   }
 
   private ensureActiveTab(): void {

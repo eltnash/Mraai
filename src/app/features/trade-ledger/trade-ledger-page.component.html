@@ -40,6 +40,7 @@
             <th scope="col">Type</th>
             <th scope="col">Volume</th>
             <th scope="col">Symbol</th>
+            <th scope="col">Strategy</th>
             <th scope="col">Price</th>
             <th scope="col">S / L</th>
             <th scope="col">T / P</th>
@@ -80,6 +81,7 @@
               </td>
               <td class="data-mono">{{ formatLedgerVolume(row.volume) }}</td>
               <td class="data-mono">{{ row.symbol }}</td>
+              <td>{{ formatStrategy(row.auctionStrategy) }}</td>
               <td class="data-mono">{{ formatLedgerPrice(row.entryPrice) }}</td>
               <td class="data-mono">
                 @if (row.stopLoss != null) {
@@ -125,7 +127,7 @@
         </tbody>
         <tfoot>
           <tr class="ledger-table__footer">
-            <td colspan="11" class="ledger-table__footer-label">Page totals</td>
+            <td colspan="12" class="ledger-table__footer-label">Page totals</td>
             <td class="data-mono">{{ formatLedgerMoney(pageTotals().commission) }}</td>
             <td class="data-mono">{{ formatLedgerMoney(pageTotals().fee) }}</td>
             <td

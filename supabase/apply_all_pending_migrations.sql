@@ -235,3 +235,18 @@ ALTER TABLE public.gatekeeper_drafts
 
 COMMENT ON COLUMN public.gatekeeper_drafts.execution_form IS
   'Draft execution block fields saved with the named Gatekeeper journal before Execute Trade';
+
+-- ---------------------------------------------------------------------------
+-- 11. Auction strategy on trades (Behavior step rejection vs acceptance read)
+-- ---------------------------------------------------------------------------
+DO $$ BEGIN
+  CREATE TYPE public.auction_strategy AS ENUM ('Level_Rejection', 'Level_Acceptance');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE public.trades
+  ADD COLUMN IF NOT EXISTS auction_strategy public.auction_strategy;
+
+COMMENT ON COLUMN public.trades.auction_strategy IS
+  'Trader-selected auction read on Behavior step: rejection (responsive) vs acceptance (initiative) at the level.';

@@ -79,6 +79,7 @@ export function defaultGatekeeperFormValue(): GatekeeperFormValue {
     behavior: {
       focus_timeframe: 'M15',
       notes_content: { ...EMPTY_TAGGED_NOTES },
+      auction_strategy: null,
       behavior: null,
     },
     confirmation: {

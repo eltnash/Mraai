@@ -12,6 +12,7 @@ import type {
   AuctionLocation,
   CompositeValuePosition,
   ConfirmationTrigger,
+  AuctionStrategy,
   DayType,
   HtfAnalysisTool,
   HtfAuctionRegime,
@@ -250,6 +251,7 @@ export function createGatekeeperForm(fb: FormBuilder) {
     }),
     behavior: fb.group({
       ...createPillarStepBase(fb),
+      auction_strategy: fb.control<AuctionStrategy | null>(null, Validators.required),
       behavior: fb.control<MarketBehavior | null>(null, Validators.required),
     }),
     confirmation: fb.group({

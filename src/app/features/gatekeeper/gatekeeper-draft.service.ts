@@ -250,6 +250,7 @@ export class GatekeeperDraftService {
         submitted_at: row.submitted_at ?? null,
         completed_at: row.completed_at ?? null,
         recovered_from_trade: row.recovered_from_trade === true,
+        auction_strategy: wizardForm.behavior.auction_strategy,
       };
     });
   }

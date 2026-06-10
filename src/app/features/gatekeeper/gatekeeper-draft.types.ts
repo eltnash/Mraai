@@ -1,6 +1,7 @@
 import type {
   AnalyzedTimeframe,
   AssetSymbol,
+  AuctionStrategy,
   PillarStepKey,
   TimeframeScreenshotRef,
   TradeSessionContext,
@@ -64,6 +65,7 @@ export interface GatekeeperJournalSummary {
   completed_at: string | null;
   /** Rebuilt from a ledger trade after the draft row was deleted by an older app version. */
   recovered_from_trade?: boolean;
+  auction_strategy: AuctionStrategy | null;
 }
 
 export interface ListJournalsOptions {

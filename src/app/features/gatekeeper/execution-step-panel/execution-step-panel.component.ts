@@ -28,7 +28,7 @@ import {
 } from '../../../core/supabase/enum-options';
 import { GatekeeperDraftService } from '../gatekeeper-draft.service';
 import { GatekeeperSubmitService } from '../gatekeeper-submit.service';
-import { dayTypeLabel } from '../auction-playbook.utils';
+import { auctionStrategyLabel, dayTypeLabel } from '../auction-playbook.utils';
 import {
   createExecutionForm,
   executionFormToDraftValue,
@@ -96,6 +96,7 @@ export class ExecutionStepPanelComponent implements OnInit {
 
   protected readonly orderTypeOptions = PLATFORM_ORDER_TYPE_OPTIONS;
   protected readonly dayTypeLabel = dayTypeLabel;
+  protected readonly auctionStrategyLabel = auctionStrategyLabel;
 
   protected readonly sessionSummary = computed(() => {
     const state = this.sessionState();
@@ -128,7 +129,9 @@ export class ExecutionStepPanelComponent implements OnInit {
       return this.sessionState() !== null && formReady;
     }
 
-    const auditReady = this.auditDraft()?.auction_type.day_type != null;
+    const audit = this.auditDraft();
+    const auditReady =
+      audit?.auction_type.day_type != null && audit?.behavior.auction_strategy != null;
     return (
       this.sessionState() !== null &&
       this.pillarsQualified() &&
@@ -152,6 +155,9 @@ export class ExecutionStepPanelComponent implements OnInit {
     }
     if (!this.relaxedQualification() && !this.auditDraft()?.auction_type.day_type) {
       return 'Select a volume profile day type on the Auction Type step.';
+    }
+    if (!this.relaxedQualification() && !this.auditDraft()?.behavior.auction_strategy) {
+      return 'Select your auction read on the Behavior step (rejection or acceptance at the level).';
     }
     if (!this.pillarsQualified() && !this.relaxedQualification()) {
       return 'Complete all qualification steps through Invalidation and confirm retest.';
@@ -321,6 +327,10 @@ export class ExecutionStepPanelComponent implements OnInit {
 
     const relaxed = this.relaxedQualification();
     const dayType: DayType = auditForm.auction_type.day_type ?? 'D_Day';
+    const auctionStrategy = auditForm.behavior.auction_strategy;
+    if (!auctionStrategy && !relaxed) {
+      return;
+    }
 
     this.submitting.set(true);
 
@@ -334,6 +344,7 @@ export class ExecutionStepPanelComponent implements OnInit {
             symbol: session.symbol,
             direction: effectiveTradeDirection(exec),
             day_type: dayType,
+            auction_strategy: auctionStrategy ?? 'Level_Acceptance',
             entry_price: exec.entry_price!,
             stop_price: exec.stop_price!,
             size: this.mapVolumeToTradeSize(exec.volume!),

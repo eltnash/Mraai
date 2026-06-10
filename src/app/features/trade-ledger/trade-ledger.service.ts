@@ -1,8 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 
-import type { AssetSymbol } from '../../core/models/database.types';
+import type { AssetSymbol, AuctionStrategy } from '../../core/models/database.types';
 import { SupabaseService } from '../../core/supabase/supabase.service';
-import { normalizeExecutionFormValue } from '../gatekeeper/gatekeeper-draft.mapper';
+import {
+  normalizeExecutionFormValue,
+  normalizeGatekeeperFormValue,
+} from '../gatekeeper/gatekeeper-draft.mapper';
 import {
   TRADE_LEDGER_PAGE_SIZE,
   type TradeLedgerPage,
@@ -14,6 +17,7 @@ interface TradeRow {
   id: string;
   symbol: AssetSymbol;
   direction: 'LONG' | 'SHORT';
+  auction_strategy: AuctionStrategy | null;
   opened_at: string;
   closed_at: string | null;
   entry_price: number | null;
@@ -30,6 +34,7 @@ interface DraftExecutionRow {
   id: string;
   journal_name: string;
   execution_form: unknown;
+  wizard_form: unknown;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -51,7 +56,7 @@ export class TradeLedgerService {
     const { data: trades, error, count } = await this.supabase.client
       .from('trades')
       .select(
-        'id, symbol, direction, opened_at, closed_at, entry_price, stop_price, exit_price, size, commissions, net_profit, notes, status',
+        'id, symbol, direction, auction_strategy, opened_at, closed_at, entry_price, stop_price, exit_price, size, commissions, net_profit, notes, status',
         { count: 'exact' },
       )
       .eq('user_id', user.id)
@@ -82,7 +87,7 @@ export class TradeLedgerService {
 
     const { data, error } = await this.supabase.client
       .from('gatekeeper_drafts')
-      .select('id, journal_name, execution_form')
+      .select('id, journal_name, execution_form, wizard_form')
       .in('id', tradeIds);
 
     if (error) {
@@ -101,6 +106,11 @@ export class TradeLedgerService {
     draft: DraftExecutionRow | undefined,
   ): TradeLedgerRow {
     const execution = normalizeExecutionFormValue(draft?.execution_form, trade.symbol);
+    const wizardForm = draft?.wizard_form
+      ? normalizeGatekeeperFormValue(draft.wizard_form)
+      : null;
+    const auctionStrategy =
+      trade.auction_strategy ?? wizardForm?.behavior.auction_strategy ?? null;
     const exitPrice = execution.exit_price ?? trade.exit_price;
     const stopLoss = execution.stop_price ?? trade.stop_price;
     const takeProfit = execution.take_profit_price;
@@ -109,6 +119,7 @@ export class TradeLedgerService {
       tradeId: trade.id,
       journalId: trade.id,
       journalName: draft?.journal_name ?? null,
+      auctionStrategy,
       entryTime: execution.entry_time ?? trade.opened_at,
       ticket: execution.ticket ?? trade.id.slice(0, 12),
       side: trade.direction === 'LONG' ? 'buy' : 'sell',

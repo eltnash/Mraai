@@ -1,4 +1,4 @@
-import type { AssetSymbol, DayType, HtfContextSnapshot, PillarJournalsSnapshot, PlatformOrderType, TradeDirection, TradeSessionContext } from '../../core/models/database.types';
+import type { AssetSymbol, AuctionStrategy, DayType, HtfContextSnapshot, PillarJournalsSnapshot, PlatformOrderType, TradeDirection, TradeSessionContext } from '../../core/models/database.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 
 /**
@@ -51,6 +51,7 @@ export interface GatekeeperSubmitPayload {
     symbol: AssetSymbol;
     direction: TradeDirection;
     day_type: DayType;
+    auction_strategy: AuctionStrategy;
     entry_price: number;
     stop_price: number;
     size: number;

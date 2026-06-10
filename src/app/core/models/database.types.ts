@@ -33,6 +33,8 @@ export type PlatformOrderType =
   | 'Sell_Stop_Limit';
 export type TradeStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'CANCELLED';
 export type DayType = 'D_Day' | 'P_Day' | 'b_Day' | 'Trend_Day' | 'Double_Dist';
+/** Trader auction read on Behavior step — rejection vs acceptance at the level. */
+export type AuctionStrategy = 'Level_Rejection' | 'Level_Acceptance';
 export type AuctionLocation =
   | 'VAH'
   | 'VAL'
@@ -207,6 +209,7 @@ export interface Trade {
   symbol: AssetSymbol;
   direction: TradeDirection;
   day_type: DayType;
+  auction_strategy: AuctionStrategy | null;
   trading_date: string;
   session_context: TradeSessionContext;
   opened_at: string;
