@@ -20,6 +20,19 @@
       [fileInputId]="'pillar-shots-' + stepKey()"
       [title]="'Chart screenshots'"
       uploadHint="Upload the chart for this pillar at your selected focus timeframe."
+      [showGalleryActions]="showGalleryActions()"
+      [tradeId]="galleryTradeId()"
+      [accountId]="galleryAccountId()"
+    />
+  </div>
+
+  <div class="pillar-panel__section">
+    <app-journal-videos-panel
+      [scope]="screenshotScope()"
+      title="Video links (YouTube)"
+      [showGalleryActions]="showGalleryActions()"
+      [tradeId]="galleryTradeId()"
+      [accountId]="galleryAccountId()"
     />
   </div>
 

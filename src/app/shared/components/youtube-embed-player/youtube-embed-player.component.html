@@ -1,0 +1,17 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="!$event && visibleChange.emit(false)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [header]="title()"
+  [style]="{ width: 'min(96vw, 900px)' }"
+>
+  <div class="youtube-player">
+    <iframe
+      [src]="safeEmbedUrl()"
+      title="YouTube video player"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+    ></iframe>
+  </div>
+</p-dialog>

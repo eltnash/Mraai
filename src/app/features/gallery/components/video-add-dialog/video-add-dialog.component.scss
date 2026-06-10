@@ -1,0 +1,18 @@
+.video-add {
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #d1d5db;
+    }
+  }
+
+  &__select {
+    width: 100%;
+  }
+}

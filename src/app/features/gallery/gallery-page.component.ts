@@ -36,7 +36,15 @@ import { GalleryGridComponent } from './components/gallery-grid/gallery-grid.com
 import { GalleryLightboxComponent } from './components/gallery-lightbox/gallery-lightbox.component';
 import { GalleryPortfolioPanelComponent } from './components/gallery-portfolio-panel/gallery-portfolio-panel.component';
 import { GalleryUploadDialogComponent } from './components/gallery-upload-dialog/gallery-upload-dialog.component';
+import { VideoAddDialogComponent } from './components/video-add-dialog/video-add-dialog.component';
+import { VideoGridComponent } from './components/video-grid/video-grid.component';
+import { VideoPlayerDialogComponent } from './components/video-player-dialog/video-player-dialog.component';
 import { GalleryService } from './gallery.service';
+import type {
+  GalleryMediaMode,
+  GalleryVideoComment,
+  GalleryVideoItem,
+} from './gallery-video.types';
 import type {
   GalleryComment,
   GalleryItem,
@@ -62,6 +70,9 @@ import type {
     GalleryLightboxComponent,
     GalleryPortfolioPanelComponent,
     GalleryUploadDialogComponent,
+    VideoGridComponent,
+    VideoPlayerDialogComponent,
+    VideoAddDialogComponent,
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './gallery-page.component.html',
@@ -84,9 +95,17 @@ export class GalleryPageComponent implements OnInit {
   protected readonly error = signal<string | null>(null);
 
   protected readonly items = signal<GalleryItem[]>([]);
+  protected readonly videos = signal<GalleryVideoItem[]>([]);
   protected readonly portfolios = signal<GalleryPortfolio[]>([]);
   protected readonly comments = signal<GalleryComment[]>([]);
+  protected readonly videoComments = signal<GalleryVideoComment[]>([]);
   protected readonly currency = signal('USD');
+
+  protected readonly mediaMode = signal<GalleryMediaMode>('images');
+  protected readonly mediaModeOptions = [
+    { label: 'Images', value: 'images' as GalleryMediaMode },
+    { label: 'Videos', value: 'videos' as GalleryMediaMode },
+  ];
 
   protected readonly activeStrategy = signal<AuctionStrategy>('Level_Rejection');
   protected readonly sourceFilter = signal<GallerySourceFilter>('all');
@@ -95,6 +114,9 @@ export class GalleryPageComponent implements OnInit {
 
   protected readonly lightboxOpen = signal(false);
   protected readonly lightboxItem = signal<GalleryItem | null>(null);
+  protected readonly videoDialogOpen = signal(false);
+  protected readonly videoDialogItem = signal<GalleryVideoItem | null>(null);
+  protected readonly videoAddDialogOpen = signal(false);
 
   protected readonly uploadDialogOpen = signal(false);
   protected readonly pendingFile = signal<File | null>(null);
@@ -148,6 +170,35 @@ export class GalleryPageComponent implements OnInit {
     });
   });
 
+  protected readonly filteredVideos = computed(() => {
+    const strategy = this.activeStrategy();
+    const source = this.sourceFilter();
+    const portfolioId = this.portfolioFilterId();
+    const query = this.searchQuery().trim().toLowerCase();
+
+    return this.videos().filter((item) => {
+      if (item.auctionStrategy !== strategy) {
+        return false;
+      }
+      if (source !== 'all' && item.source !== source) {
+        return false;
+      }
+      if (portfolioId && item.portfolioId !== portfolioId) {
+        return false;
+      }
+      if (query) {
+        const haystack = [item.title, item.journalIdShort, item.symbol, item.sourceUrl]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(query)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  });
+
   protected readonly editPortfolioOptions = computed(() => [
     { label: 'No portfolio', value: null as string | null },
     ...this.portfolios()
@@ -187,8 +238,10 @@ export class GalleryPageComponent implements OnInit {
       }
       const data = await this.galleryService.loadPageData(accountId);
       this.items.set(data.items);
+      this.videos.set(data.videos);
       this.portfolios.set(data.portfolios);
       this.comments.set(data.comments);
+      this.videoComments.set(data.videoComments);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Could not load gallery');
     } finally {
@@ -288,7 +341,7 @@ export class GalleryPageComponent implements OnInit {
       if (item.source === 'upload' && item.galleryAssetId) {
         await this.galleryService.updateAsset(item.galleryAssetId, { rankScore: newRank });
       } else if (item.tradeId != null && item.screenshotIndex != null) {
-        await this.galleryService.upsertJournalOverride(accountId, {
+        await this.galleryService.updateJournalImagePost(accountId, {
           tradeId: item.tradeId,
           screenshotIndex: item.screenshotIndex,
           rankScore: newRank,
@@ -319,7 +372,7 @@ export class GalleryPageComponent implements OnInit {
       if (item.source === 'upload' && item.galleryAssetId) {
         await this.galleryService.updateAsset(item.galleryAssetId, { portfolioId });
       } else if (item.tradeId != null && item.screenshotIndex != null) {
-        await this.galleryService.upsertJournalOverride(accountId, {
+        await this.galleryService.updateJournalImagePost(accountId, {
           tradeId: item.tradeId,
           screenshotIndex: item.screenshotIndex,
           portfolioId,
@@ -524,6 +577,136 @@ export class GalleryPageComponent implements OnInit {
     }
   }
 
+  protected openVideo(item: GalleryVideoItem): void {
+    this.videoDialogItem.set(item);
+    this.videoDialogOpen.set(true);
+  }
+
+  protected async confirmAddVideo(meta: {
+    sourceUrl: string;
+    auctionStrategy: AuctionStrategy;
+    title: string | null;
+    caption: string | null;
+    publishedAt: string | null;
+    portfolioId: string | null;
+    rankScore: number | null;
+  }): Promise<void> {
+    const accountId = this.accountScope.accountId();
+    if (!accountId) {
+      return;
+    }
+    this.saving.set(true);
+    try {
+      await this.galleryService.uploadVideo(accountId, meta);
+      this.videoAddDialogOpen.set(false);
+      this.mediaMode.set('videos');
+      this.activeStrategy.set(meta.auctionStrategy);
+      await this.reload();
+      this.messageService.add({ severity: 'success', summary: 'Added', detail: 'Video added to gallery.' });
+    } catch (err) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Add failed',
+        detail: err instanceof Error ? err.message : 'Could not add video',
+      });
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  protected async setVideoRank(item: GalleryVideoItem, rank: number): Promise<void> {
+    const accountId = this.accountScope.accountId();
+    if (!accountId) {
+      return;
+    }
+    const newRank = item.rankScore === rank ? null : rank;
+    this.saving.set(true);
+    try {
+      if (item.galleryVideoId) {
+        await this.galleryService.updateVideo(item.galleryVideoId, { rankScore: newRank });
+      } else if (item.tradeId && item.videoEmbedId) {
+        await this.galleryService.updateJournalVideoPost(accountId, {
+          tradeId: item.tradeId,
+          videoEmbedId: item.videoEmbedId,
+          rankScore: newRank,
+          portfolioId: item.portfolioId,
+        });
+      }
+      await this.reload();
+      this.syncVideoDialogItem();
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  protected async setVideoPortfolio(item: GalleryVideoItem, portfolioId: string | null): Promise<void> {
+    const accountId = this.accountScope.accountId();
+    if (!accountId) {
+      return;
+    }
+    this.saving.set(true);
+    try {
+      if (item.galleryVideoId) {
+        await this.galleryService.updateVideo(item.galleryVideoId, { portfolioId });
+      } else if (item.tradeId && item.videoEmbedId) {
+        await this.galleryService.updateJournalVideoPost(accountId, {
+          tradeId: item.tradeId,
+          videoEmbedId: item.videoEmbedId,
+          portfolioId,
+          rankScore: item.rankScore,
+        });
+      }
+      await this.reload();
+      this.syncVideoDialogItem();
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  protected async addVideoComment(body: string): Promise<void> {
+    const accountId = this.accountScope.accountId();
+    const item = this.videoDialogItem();
+    if (!accountId || !item) {
+      return;
+    }
+    const target =
+      item.galleryVideoId != null
+        ? { galleryVideoId: item.galleryVideoId }
+        : { tradeId: item.tradeId!, videoEmbedId: item.videoEmbedId! };
+    const comment = await this.galleryService.addVideoComment(accountId, body, target);
+    this.videoComments.update((list) => [...list, comment]);
+    await this.reload();
+    this.syncVideoDialogItem();
+  }
+
+  protected async deleteVideoItem(item: GalleryVideoItem): Promise<void> {
+    if (!item.galleryVideoId) {
+      return;
+    }
+    await this.galleryService.deleteVideo(item.galleryVideoId);
+    this.videoDialogOpen.set(false);
+    await this.reload();
+  }
+
+  protected async openJournalForVideo(item: GalleryVideoItem): Promise<void> {
+    if (!item.tradeId) {
+      return;
+    }
+    const accountId = this.accountScope.accountId();
+    if (!accountId) {
+      return;
+    }
+    this.openingJournal.set(true);
+    try {
+      await this.draftService.ensureJournalForTrade(item.tradeId);
+      await this.router.navigate(['/accounts', accountId, 'gatekeeper'], {
+        queryParams: { journalId: item.tradeId },
+      });
+    } finally {
+      this.openingJournal.set(false);
+    }
+  }
+
   private syncLightboxItem(): void {
     const current = this.lightboxItem();
     if (!current) {
@@ -533,6 +716,18 @@ export class GalleryPageComponent implements OnInit {
     this.lightboxItem.set(updated);
     if (!updated) {
       this.lightboxOpen.set(false);
+    }
+  }
+
+  private syncVideoDialogItem(): void {
+    const current = this.videoDialogItem();
+    if (!current) {
+      return;
+    }
+    const updated = this.videos().find((i) => i.id === current.id) ?? null;
+    this.videoDialogItem.set(updated);
+    if (!updated) {
+      this.videoDialogOpen.set(false);
     }
   }
 }

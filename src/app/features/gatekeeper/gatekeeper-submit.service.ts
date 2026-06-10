@@ -21,12 +21,14 @@ import {
   GatekeeperScreenshotDraftService,
   type JournalScreenshotItem,
 } from './gatekeeper-screenshot-draft.service';
+import { GatekeeperVideoDraftService } from './gatekeeper-video-draft.service';
 import { QUALIFICATION_PILLAR_KEYS } from './pillar-context.utils';
 
 @Injectable({ providedIn: 'root' })
 export class GatekeeperSubmitService {
   private readonly supabase = inject(SupabaseService);
   private readonly screenshotDrafts = inject(GatekeeperScreenshotDraftService);
+  private readonly videoDrafts = inject(GatekeeperVideoDraftService);
   private readonly draftService = inject(GatekeeperDraftService);
   private readonly mediaService = inject(GatekeeperMediaService);
   private readonly accountService = inject(TradingAccountService);
@@ -227,11 +229,14 @@ export class GatekeeperSubmitService {
     }
 
     const current = audit.pillar_journals as PillarJournalsSnapshot;
+    const videoEmbeds = this.videoDrafts.getItems({ kind: 'pillar', id: 'outcome' });
+
     const outcomeJournal: PillarStepJournal = {
       focus_timeframe: outcome.focus_timeframe,
       notes: taggedNotesPlainText(outcome.notes_content),
       note_tags: outcome.notes_content.tags,
       screenshots: [],
+      video_embeds: videoEmbeds,
     };
 
     const screenshots = await this.resolveOutcomeScreenshotRefs(user.id, tradeId, items);
@@ -247,6 +252,7 @@ export class GatekeeperSubmitService {
 
   finalizeSubmittedJournal(): void {
     this.screenshotDrafts.clearAll();
+    this.videoDrafts.clearAll();
     this.draftService.clearActive();
   }
 
@@ -293,6 +299,7 @@ export class GatekeeperSubmitService {
           notes: '',
           note_tags: [],
           screenshots: [],
+          video_embeds: [],
         },
         pendingUploads,
       );

@@ -1,0 +1,45 @@
+@if (items().length > 0) {
+  <div class="video-grid">
+    @for (item of items(); track item.id) {
+      <button type="button" class="video-card" (click)="openItem(item)">
+        <div class="video-card__image-wrap">
+          <img [src]="item.thumbnailUrl" [alt]="displayTitle(item)" loading="lazy" />
+          <span class="video-card__play"><i class="pi pi-play"></i></span>
+          <span class="video-card__badge" [class.video-card__badge--journal]="item.source === 'journal'">
+            {{ item.source === 'journal' ? 'Journal' : 'Upload' }}
+          </span>
+        </div>
+        <div class="video-card__body">
+          <span class="video-card__title">{{ displayTitle(item) }}</span>
+          <div class="video-card__stars">
+            @for (star of stars(); track star) {
+              <button
+                type="button"
+                class="video-card__star"
+                [class.video-card__star--active]="(item.rankScore ?? 0) >= star"
+                (click)="setRank(item, star, $event)"
+              >
+                <i class="pi" [class.pi-star-fill]="(item.rankScore ?? 0) >= star" [class.pi-star]="(item.rankScore ?? 0) < star"></i>
+              </button>
+            }
+          </div>
+          <div class="video-card__meta">
+            @if (portfolioName(item.portfolioId); as portfolio) {
+              <span class="video-card__portfolio">{{ portfolio }}</span>
+            }
+            @if (item.commentCount > 0) {
+              <span class="video-card__comments"><i class="pi pi-comment"></i> {{ item.commentCount }}</span>
+            }
+            @if (item.source === 'journal' && item.netProfit != null) {
+              <span class="video-card__pnl data-mono" [class.video-card__pnl--loss]="item.netProfit < 0">
+                {{ item.netProfit >= 0 ? '+' : '' }}{{ item.netProfit | number: '1.2-2' }}
+              </span>
+            }
+          </div>
+        </div>
+      </button>
+    }
+  </div>
+} @else {
+  <p class="video-grid__empty">No videos match the current filters.</p>
+}

@@ -4,7 +4,9 @@ import {
   computed,
   effect,
   HostListener,
+  inject,
   input,
+  OnInit,
   signal,
   viewChild,
 } from '@angular/core';
@@ -16,7 +18,10 @@ import { EnumPillSelectComponent } from '../../../shared/components/enum-pill-se
 import { TaggedNotesEditorComponent } from '../../../shared/components/tagged-notes-editor/tagged-notes-editor.component';
 import { pillarFocusLabel } from '../pillar-context.utils';
 import { readImageFromClipboardEvent } from '../screenshot-upload.utils';
+import { AccountScopeService } from '../../../core/accounts/account-scope.service';
+import { GatekeeperDraftService } from '../gatekeeper-draft.service';
 import { JournalScreenshotsPanelComponent } from '../journal-screenshots-panel/journal-screenshots-panel.component';
+import { JournalVideosPanelComponent } from '../journal-videos-panel/journal-videos-panel.component';
 
 @Component({
   selector: 'app-pillar-step-panel',
@@ -24,13 +29,17 @@ import { JournalScreenshotsPanelComponent } from '../journal-screenshots-panel/j
     ReactiveFormsModule,
     EnumPillSelectComponent,
     JournalScreenshotsPanelComponent,
+    JournalVideosPanelComponent,
     TaggedNotesEditorComponent,
   ],
   templateUrl: './pillar-step-panel.component.html',
   styleUrl: './pillar-step-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PillarStepPanelComponent {
+export class PillarStepPanelComponent implements OnInit {
+  private readonly draftService = inject(GatekeeperDraftService);
+  private readonly accountScope = inject(AccountScopeService);
+
   readonly stepKey = input.required<PillarStepKey>();
   readonly stepGroup = input.required<FormGroup>();
   readonly stepTitle = input.required<string>();
@@ -48,8 +57,18 @@ export class PillarStepPanelComponent {
   }));
 
   protected readonly focusLabel = computed(() => pillarFocusLabel(this.focusTimeframe()));
+  protected readonly tradeClosed = signal(false);
+  protected readonly galleryTradeId = computed(() => this.draftService.activeDraftId());
+  protected readonly galleryAccountId = computed(() => this.accountScope.accountId());
+  protected readonly showGalleryActions = computed(
+    () => this.stepKey() === 'outcome' && this.tradeClosed(),
+  );
 
   private readonly screenshotsPanel = viewChild(JournalScreenshotsPanelComponent);
+
+  ngOnInit(): void {
+    void this.loadTradeStatus();
+  }
 
   constructor() {
     effect((onCleanup) => {
@@ -84,5 +103,17 @@ export class PillarStepPanelComponent {
 
     event.preventDefault();
     this.screenshotsPanel()?.handlePaste(file);
+  }
+
+  private async loadTradeStatus(): Promise<void> {
+    if (this.stepKey() !== 'outcome') {
+      return;
+    }
+    const tradeId = this.draftService.activeDraftId();
+    if (!tradeId) {
+      return;
+    }
+    const status = await this.draftService.getTradeStatus(tradeId);
+    this.tradeClosed.set(status === 'CLOSED');
   }
 }

@@ -10,13 +10,17 @@
     <div>
       <h1 class="gallery-page__title">Strategy Gallery</h1>
       <p class="gallery-page__subtitle">
-        Uploads, diagrams, and winning trade outcome screenshots grouped by auction strategy.
+        Curated images and YouTube videos by auction strategy — journal media appears only when you post it from the outcome tab.
       </p>
     </div>
     <div class="gallery-page__actions">
-      <input #fileInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onFileSelected($event)" />
-      <p-button label="Upload" icon="pi pi-upload" (onClick)="openFilePicker(fileInput)" />
-      <p-button label="Paste" icon="pi pi-clone" [outlined]="true" (onClick)="pasteFromClipboard()" />
+      @if (mediaMode() === 'images') {
+        <input #fileInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onFileSelected($event)" />
+        <p-button label="Upload image" icon="pi pi-upload" (onClick)="openFilePicker(fileInput)" />
+        <p-button label="Paste image" icon="pi pi-clone" [outlined]="true" (onClick)="pasteFromClipboard()" />
+      } @else {
+        <p-button label="Add video link" icon="pi pi-link" (onClick)="videoAddDialogOpen.set(true)" />
+      }
     </div>
   </header>
 
@@ -25,6 +29,17 @@
   }
 
   <div class="gallery-page__controls">
+    <div class="gallery-page__media">
+      <span class="gallery-page__control-label">Media</span>
+      <p-selectButton
+        [options]="mediaModeOptions"
+        [ngModel]="mediaMode()"
+        (ngModelChange)="mediaMode.set($event)"
+        optionLabel="label"
+        optionValue="value"
+      />
+    </div>
+
     <div class="gallery-page__strategy">
       <span class="gallery-page__control-label">Strategy</span>
       <p-selectButton
@@ -68,26 +83,47 @@
     (createPortfolio)="createPortfolio($event)"
   />
 
-  <p class="gallery-page__paste-hint">Tip: paste an image anywhere on this page to upload quickly.</p>
+  @if (mediaMode() === 'images') {
+    <p class="gallery-page__paste-hint">Tip: paste an image anywhere on this page to upload quickly.</p>
 
-  <app-gallery-grid
-    [items]="filteredItems()"
-    [portfolios]="portfolios()"
-    [currency]="currency()"
-    (itemOpen)="openItem($event)"
-    (rankChange)="setRank($event.item, $event.rank)"
-  />
+    <app-gallery-grid
+      [items]="filteredItems()"
+      [portfolios]="portfolios()"
+      [currency]="currency()"
+      (itemOpen)="openItem($event)"
+      (rankChange)="setRank($event.item, $event.rank)"
+    />
 
-  @if (filteredItems().length === 0) {
-    <p class="gallery-page__empty">
-      @if (sourceFilter() === 'upload') {
-        No uploaded images for this strategy yet. Upload or paste a diagram to get started.
-      } @else if (sourceFilter() === 'journal') {
-        No winning trade outcome screenshots for this strategy yet. Close profitable trades with outcome charts in Gatekeeper.
-      } @else {
-        No images for this strategy yet. Upload diagrams or add outcome screenshots via Gatekeeper.
-      }
-    </p>
+    @if (filteredItems().length === 0) {
+      <p class="gallery-page__empty">
+        @if (sourceFilter() === 'upload') {
+          No uploaded images for this strategy yet.
+        } @else if (sourceFilter() === 'journal') {
+          No journal images posted to gallery yet. Use Post to gallery on the outcome tab in Gatekeeper.
+        } @else {
+          No images for this strategy yet.
+        }
+      </p>
+    }
+  } @else {
+    <app-video-grid
+      [items]="filteredVideos()"
+      [portfolios]="portfolios()"
+      (itemOpen)="openVideo($event)"
+      (rankChange)="setVideoRank($event.item, $event.rank)"
+    />
+
+    @if (filteredVideos().length === 0) {
+      <p class="gallery-page__empty">
+        @if (sourceFilter() === 'upload') {
+          No uploaded videos for this strategy yet. Add a YouTube link to get started.
+        } @else if (sourceFilter() === 'journal') {
+          No journal videos posted to gallery yet. Use Post to gallery on outcome videos in Gatekeeper.
+        } @else {
+          No videos for this strategy yet.
+        }
+      </p>
+    }
   }
 }
 
@@ -109,6 +145,32 @@
   (editItem)="openEdit($event)"
   (deleteItem)="confirmDelete($event)"
   (openJournal)="openJournal($event)"
+/>
+
+<app-video-player-dialog
+  [visible]="videoDialogOpen()"
+  [item]="videoDialogItem()"
+  [items]="filteredVideos()"
+  [comments]="videoComments()"
+  [portfolios]="portfolios()"
+  [currency]="currency()"
+  [openingJournal]="openingJournal()"
+  (visibleChange)="videoDialogOpen.set($event)"
+  (navigate)="videoDialogItem.set($event)"
+  (rankChange)="setVideoRank($event.item, $event.rank)"
+  (portfolioChange)="setVideoPortfolio($event.item, $event.portfolioId)"
+  (addComment)="addVideoComment($event)"
+  (deleteItem)="deleteVideoItem($event)"
+  (openJournal)="openJournalForVideo($event)"
+/>
+
+<app-video-add-dialog
+  [visible]="videoAddDialogOpen()"
+  [defaultStrategy]="activeStrategy()"
+  [portfolios]="portfolios()"
+  [saving]="saving()"
+  (visibleChange)="videoAddDialogOpen.set($event)"
+  (confirm)="confirmAddVideo($event)"
 />
 
 <app-gallery-upload-dialog

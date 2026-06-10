@@ -1,0 +1,89 @@
+<div class="journal-videos">
+  <span class="journal-videos__label">{{ title() }}</span>
+
+  @if (addError(); as error) {
+    <p-message severity="error" [text]="error" />
+  }
+
+  @if (videoItems().length > 0) {
+    <div class="journal-videos__list">
+      @for (embed of videoItems(); track embed.id) {
+        <article class="journal-videos__card">
+          <button type="button" class="journal-videos__thumb" (click)="openPlayer(embed)">
+            <img [src]="thumbnail(embed)" [alt]="displayTitle(embed)" loading="lazy" />
+          </button>
+          <div class="journal-videos__meta">
+            <span class="journal-videos__title">{{ displayTitle(embed) }}</span>
+            @if (embed.published_at) {
+              <span class="journal-videos__date">{{ embed.published_at }}</span>
+            }
+          </div>
+          <div class="journal-videos__actions">
+            <p-button label="Play" icon="pi pi-play" size="small" (onClick)="openPlayer(embed)" />
+            @if (showGalleryActions()) {
+              <p-button
+                [label]="isVideoPosted(embed.id) ? 'Remove from gallery' : 'Post to gallery'"
+                [icon]="isVideoPosted(embed.id) ? 'pi pi-times' : 'pi pi-images'"
+                size="small"
+                [outlined]="true"
+                [loading]="galleryBusyId() === embed.id"
+                (onClick)="toggleGalleryPost(embed)"
+              />
+            }
+            <p-button
+              label="Remove"
+              icon="pi pi-trash"
+              size="small"
+              [text]="true"
+              severity="danger"
+              (onClick)="removeVideo(embed.id)"
+            />
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+  <div class="journal-videos__add">
+    <label class="journal-videos__field-label" for="journal-video-url">YouTube URL</label>
+    <input
+      pInputText
+      id="journal-video-url"
+      placeholder="https://www.youtube.com/watch?v=..."
+      [ngModel]="urlInput()"
+      (ngModelChange)="urlInput.set($event)"
+    />
+    <label class="journal-videos__field-label" for="journal-video-title">Title (optional)</label>
+    <input
+      pInputText
+      id="journal-video-title"
+      placeholder="Screen recording label"
+      [ngModel]="titleInput()"
+      (ngModelChange)="titleInput.set($event)"
+    />
+    <label class="journal-videos__field-label" for="journal-video-date">Published date (optional)</label>
+    <input
+      pInputText
+      id="journal-video-date"
+      type="date"
+      [ngModel]="publishedInput()"
+      (ngModelChange)="publishedInput.set($event)"
+    />
+    <p-button
+      label="Add video"
+      icon="pi pi-link"
+      [loading]="saving()"
+      (onClick)="addVideo()"
+      [disabled]="!urlInput().trim()"
+    />
+  </div>
+</div>
+
+@if (playingEmbed(); as embed) {
+  <app-youtube-embed-player
+    [visible]="playerOpen()"
+    (visibleChange)="!$event && closePlayer()"
+    [embedUrl]="embed.embed_url"
+    [title]="displayTitle(embed)"
+  />
+}

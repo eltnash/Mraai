@@ -150,13 +150,15 @@ export function normalizeGatekeeperFormValue(raw: unknown): GatekeeperFormValue 
 
 export function normalizeDraftMedia(raw: unknown): GatekeeperDraftMedia {
   if (!raw || typeof raw !== 'object') {
-    return { htf: {}, pillars: {} };
+    return { htf: {}, pillars: {}, htf_videos: {}, pillar_videos: {} };
   }
 
   const value = raw as Partial<GatekeeperDraftMedia>;
   return {
     htf: value.htf ?? {},
     pillars: value.pillars ?? {},
+    htf_videos: value.htf_videos ?? {},
+    pillar_videos: value.pillar_videos ?? {},
   };
 }
 
@@ -169,6 +171,7 @@ function attachHtfScreenshots(
     timeframe_entries: context.timeframe_entries.map((entry) => ({
       ...entry,
       screenshots: media.htf[entry.timeframe] ?? entry.screenshots,
+      video_embeds: media.htf_videos[entry.timeframe] ?? entry.video_embeds ?? [],
     })),
   };
 }
@@ -183,6 +186,7 @@ function attachPillarScreenshots(
     result[step] = {
       ...journals[step],
       screenshots: media.pillars[step] ?? journals[step].screenshots,
+      video_embeds: media.pillar_videos[step] ?? journals[step].video_embeds ?? [],
     };
   }
 

@@ -7,13 +7,24 @@
 
   @if (screenshotItems().length > 0) {
     <div class="journal-shots__gallery">
-      @for (item of screenshotItems(); track item.id) {
+      @for (item of screenshotItems(); track item.id; let idx = $index) {
         <article class="journal-shots__gallery-item">
           <button type="button" class="journal-shots__thumb" (click)="openAnnotator(item.id)">
             <img [src]="item.previewUrl" [alt]="title()" />
           </button>
           <div class="journal-shots__item-actions">
             <p-button type="button" label="Annotate" icon="pi pi-pencil" size="small" (onClick)="openAnnotator(item.id)" />
+            @if (showGalleryActions()) {
+              <p-button
+                type="button"
+                [label]="isImagePosted(idx) ? 'Remove from gallery' : 'Post to gallery'"
+                [icon]="isImagePosted(idx) ? 'pi pi-times' : 'pi pi-images'"
+                size="small"
+                [outlined]="true"
+                [loading]="galleryBusyIndex() === idx"
+                (onClick)="toggleGalleryPost(idx)"
+              />
+            }
             <p-button
               type="button"
               label="Remove"

@@ -1,0 +1,50 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="!$event && close()"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(96vw, 1100px)' }"
+  [header]="item()?.title ?? 'Video'"
+>
+  @if (item(); as current) {
+    <div class="video-player-dialog">
+      <div class="video-player-dialog__player">
+        @if (safeEmbedUrl(); as url) {
+          <iframe [src]="url" title="YouTube player" allowfullscreen></iframe>
+        }
+      </div>
+      <aside class="video-player-dialog__sidebar">
+        <p-tag [value]="current.source === 'journal' ? 'From journal' : 'Uploaded'" />
+        <p-tag [value]="strategyName(current.auctionStrategy)" [severity]="strategySeverity(current.auctionStrategy)" />
+        @if (current.source === 'journal') {
+          <p-button label="Open in Gatekeeper" icon="pi pi-external-link" [loading]="openingJournal()" (onClick)="openJournal.emit(current)" />
+        } @else {
+          <p-button label="Delete" icon="pi pi-trash" severity="danger" [outlined]="true" (onClick)="deleteItem.emit(current)" />
+        }
+        <div class="video-player-dialog__stars">
+          @for (star of stars(); track star) {
+            <button type="button" (click)="setRank(star)">
+              <i class="pi" [class.pi-star-fill]="(current.rankScore ?? 0) >= star" [class.pi-star]="(current.rankScore ?? 0) < star"></i>
+            </button>
+          }
+        </div>
+        <p-select
+          [options]="portfolioOptions()"
+          [ngModel]="current.portfolioId"
+          (ngModelChange)="onPortfolioChange($event)"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Portfolio"
+          styleClass="video-player-dialog__select"
+        />
+        <section class="video-player-dialog__comments">
+          @for (comment of itemComments(); track comment.id) {
+            <p>{{ comment.body }}</p>
+          }
+          <textarea pTextarea rows="2" [ngModel]="newComment()" (ngModelChange)="newComment.set($event)"></textarea>
+          <p-button label="Post comment" size="small" (onClick)="submitComment()" />
+        </section>
+      </aside>
+    </div>
+  }
+</p-dialog>

@@ -35,6 +35,7 @@ function emptyPillarJournal(): PillarStepJournal {
     notes: '',
     note_tags: [],
     screenshots: [],
+    video_embeds: [],
   };
 }
 
@@ -44,6 +45,7 @@ function mapStepToJournal(step: PillarStepFormValue): PillarStepJournal {
     notes: step.notes_content.text.trim(),
     note_tags: step.notes_content.tags,
     screenshots: [],
+    video_embeds: [],
   };
 }
 

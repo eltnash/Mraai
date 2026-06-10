@@ -1,14 +1,24 @@
 import { Injectable, inject } from '@angular/core';
 
 import { GalleryMediaService } from '../../core/supabase/gallery-media.service';
-import type { AuctionStrategy, PillarJournalsSnapshot } from '../../core/models/database.types';
+import type { AuctionStrategy, JournalVideoEmbed, PillarJournalsSnapshot } from '../../core/models/database.types';
 import { SupabaseService } from '../../core/supabase/supabase.service';
 import { formatJournalIdShort } from '../../shared/utils/journal-id.utils';
+import { parseYoutubeUrl, youtubeThumbnailUrl } from '../../shared/utils/youtube-embed.utils';
+import {
+  type GalleryVideoComment,
+  type GalleryVideoItem,
+  type GalleryVideoJournalPostUpdate,
+  type GalleryVideoUpdate,
+  type GalleryVideoUploadInput,
+  journalGalleryVideoItemId,
+  sortGalleryVideos,
+} from './gallery-video.types';
 import {
   type GalleryAssetUpdate,
   type GalleryComment,
   type GalleryItem,
-  type GalleryJournalOverrideInput,
+  type GalleryJournalPostUpdate,
   type GalleryPageData,
   type GalleryPortfolio,
   type GalleryUploadInput,
@@ -39,12 +49,15 @@ interface RawGalleryAsset {
   created_at: string;
 }
 
-interface RawGalleryOverride {
+interface RawGalleryJournalPost {
   id: string;
   trade_id: string;
-  screenshot_index: number;
-  portfolio_id: string | null;
+  media_type: 'image' | 'video';
+  screenshot_index: number | null;
+  video_embed_id: string | null;
+  posted_at: string;
   rank_score: number | null;
+  portfolio_id: string | null;
 }
 
 interface RawGalleryComment {
@@ -58,7 +71,33 @@ interface RawGalleryComment {
   updated_at: string;
 }
 
-interface RawWinningTrade {
+interface RawGalleryVideo {
+  id: string;
+  account_id: string;
+  auction_strategy: AuctionStrategy;
+  portfolio_id: string | null;
+  source_url: string;
+  embed_url: string;
+  youtube_video_id: string;
+  title: string | null;
+  caption: string | null;
+  published_at: string | null;
+  rank_score: number | null;
+  created_at: string;
+}
+
+interface RawGalleryVideoComment {
+  id: string;
+  user_id: string;
+  body: string;
+  gallery_video_id: string | null;
+  trade_id: string | null;
+  video_embed_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RawTrade {
   id: string;
   auction_strategy: AuctionStrategy | null;
   trading_date: string;
@@ -78,30 +117,34 @@ export class GalleryService {
   private readonly media = inject(GalleryMediaService);
 
   async loadPageData(accountId: string): Promise<GalleryPageData> {
-    const [portfolios, assets, overrides, comments, trades, audits] = await Promise.all([
+    const [portfolios, assets, posts, comments, videos, videoComments] = await Promise.all([
       this.loadPortfolios(accountId),
       this.loadAssets(accountId),
-      this.loadOverrides(accountId),
+      this.loadJournalPosts(accountId),
       this.loadComments(accountId),
-      this.loadWinningTrades(accountId),
-      this.loadAuditsForAccount(accountId),
+      this.loadStandaloneVideos(accountId),
+      this.loadVideoComments(accountId),
     ]);
 
-    const overrideMap = new Map(
-      overrides.map((o) => [`${o.trade_id}:${o.screenshot_index}`, o]),
-    );
-    const commentCounts = this.buildCommentCounts(comments);
+    const imagePosts = posts.filter((p) => p.media_type === 'image');
+    const videoPosts = posts.filter((p) => p.media_type === 'video');
 
-    const storagePaths = new Set<string>();
-    for (const asset of assets) {
-      storagePaths.add(asset.storage_path);
-    }
-    for (const trade of trades) {
-      const screenshots = audits.get(trade.id)?.pillar_journals?.outcome?.screenshots ?? [];
-      for (const shot of screenshots) {
-        if (shot.storage_path) {
-          storagePaths.add(shot.storage_path);
-        }
+    const tradeIds = [...new Set(posts.map((p) => p.trade_id))];
+    const [trades, audits] = await Promise.all([
+      this.loadTradesByIds(tradeIds),
+      this.loadAuditsForTradeIds(tradeIds),
+    ]);
+
+    const postMap = new Map(posts.map((p) => [this.postKey(p), p]));
+    const commentCounts = this.buildCommentCounts(comments);
+    const videoCommentCounts = this.buildVideoCommentCounts(videoComments);
+
+    const storagePaths = new Set<string>(assets.map((a) => a.storage_path));
+    for (const post of imagePosts) {
+      const shot =
+        audits.get(post.trade_id)?.pillar_journals?.outcome?.screenshots?.[post.screenshot_index ?? -1];
+      if (shot?.storage_path) {
+        storagePaths.add(shot.storage_path);
       }
     }
 
@@ -120,6 +163,7 @@ export class GalleryService {
       portfolioId: asset.portfolio_id,
       editable: true,
       sortDate: asset.created_at,
+      postedAt: null,
       commentCount: commentCounts.get(asset.id) ?? 0,
       tradeId: null,
       screenshotIndex: null,
@@ -131,45 +175,115 @@ export class GalleryService {
     }));
 
     const journalItems: GalleryItem[] = [];
-    for (const trade of trades) {
-      if (!trade.auction_strategy) {
+    for (const post of imagePosts) {
+      const trade = trades.get(post.trade_id);
+      if (!trade?.auction_strategy) {
         continue;
       }
-      const screenshots = audits.get(trade.id)?.pillar_journals?.outcome?.screenshots ?? [];
-      screenshots.forEach((shot, index) => {
-        if (!shot.storage_path) {
-          return;
-        }
-        const overrideKey = `${trade.id}:${index}`;
-        const override = overrideMap.get(overrideKey);
-        const itemId = journalGalleryItemId(trade.id, index);
-        journalItems.push({
-          id: itemId,
-          source: 'journal',
-          auctionStrategy: trade.auction_strategy!,
-          imageUrl: urlMap.get(shot.storage_path) ?? '',
-          storagePath: shot.storage_path,
-          fileName: shot.file_name,
-          title: null,
-          caption: null,
-          rankScore: override?.rank_score ?? null,
-          portfolioId: override?.portfolio_id ?? null,
-          editable: false,
-          sortDate: trade.closed_at ?? trade.trading_date,
-          commentCount: commentCounts.get(itemId) ?? 0,
-          tradeId: trade.id,
-          screenshotIndex: index,
-          journalIdShort: formatJournalIdShort(trade.id),
-          symbol: trade.symbol,
-          netProfit: Number(trade.net_profit ?? 0),
-          tradingDate: trade.trading_date,
-          galleryAssetId: null,
-        });
+      const index = post.screenshot_index ?? -1;
+      const shot = audits.get(post.trade_id)?.pillar_journals?.outcome?.screenshots?.[index];
+      if (!shot?.storage_path) {
+        continue;
+      }
+      const itemId = journalGalleryItemId(post.trade_id, index);
+      journalItems.push({
+        id: itemId,
+        source: 'journal',
+        auctionStrategy: trade.auction_strategy,
+        imageUrl: urlMap.get(shot.storage_path) ?? '',
+        storagePath: shot.storage_path,
+        fileName: shot.file_name,
+        title: null,
+        caption: null,
+        rankScore: post.rank_score,
+        portfolioId: post.portfolio_id,
+        editable: false,
+        sortDate: trade.closed_at ?? trade.trading_date,
+        postedAt: post.posted_at,
+        commentCount: commentCounts.get(itemId) ?? 0,
+        tradeId: post.trade_id,
+        screenshotIndex: index,
+        journalIdShort: formatJournalIdShort(post.trade_id),
+        symbol: trade.symbol,
+        netProfit: Number(trade.net_profit ?? 0),
+        tradingDate: trade.trading_date,
+        galleryAssetId: null,
       });
     }
 
-    const items = sortGalleryItems([...uploadItems, ...journalItems]);
-    return { portfolios, items, comments };
+    const uploadVideos: GalleryVideoItem[] = videos.map((video) => ({
+      id: video.id,
+      source: 'upload',
+      auctionStrategy: video.auction_strategy,
+      embedUrl: video.embed_url,
+      sourceUrl: video.source_url,
+      youtubeVideoId: video.youtube_video_id,
+      thumbnailUrl: youtubeThumbnailUrl(video.youtube_video_id),
+      title: video.title,
+      caption: video.caption,
+      publishedAt: video.published_at,
+      rankScore: video.rank_score,
+      portfolioId: video.portfolio_id,
+      editable: true,
+      sortDate: video.created_at,
+      postedAt: null,
+      commentCount: videoCommentCounts.get(video.id) ?? 0,
+      tradeId: null,
+      videoEmbedId: null,
+      journalIdShort: null,
+      symbol: null,
+      netProfit: null,
+      tradingDate: null,
+      galleryVideoId: video.id,
+    }));
+
+    const journalVideos: GalleryVideoItem[] = [];
+    for (const post of videoPosts) {
+      const trade = trades.get(post.trade_id);
+      const embedId = post.video_embed_id;
+      if (!trade?.auction_strategy || !embedId) {
+        continue;
+      }
+      const embed = this.findVideoEmbed(audits.get(post.trade_id), embedId);
+      if (!embed) {
+        continue;
+      }
+      const itemId = journalGalleryVideoItemId(post.trade_id, embedId);
+      const videoId = embed.embed_url.match(/embed\/([^?]+)/)?.[1] ?? '';
+      journalVideos.push({
+        id: itemId,
+        source: 'journal',
+        auctionStrategy: trade.auction_strategy,
+        embedUrl: embed.embed_url,
+        sourceUrl: embed.source_url,
+        youtubeVideoId: videoId,
+        thumbnailUrl: youtubeThumbnailUrl(videoId),
+        title: embed.title,
+        caption: null,
+        publishedAt: embed.published_at,
+        rankScore: post.rank_score,
+        portfolioId: post.portfolio_id,
+        editable: false,
+        sortDate: trade.closed_at ?? trade.trading_date,
+        postedAt: post.posted_at,
+        commentCount: videoCommentCounts.get(itemId) ?? 0,
+        tradeId: post.trade_id,
+        videoEmbedId: embedId,
+        journalIdShort: formatJournalIdShort(post.trade_id),
+        symbol: trade.symbol,
+        netProfit: Number(trade.net_profit ?? 0),
+        tradingDate: trade.trading_date,
+        galleryVideoId: null,
+      });
+    }
+
+    return {
+      portfolios,
+      items: sortGalleryItems([...uploadItems, ...journalItems]),
+      comments,
+      videos: sortGalleryVideos([...uploadVideos, ...journalVideos]),
+      videoComments,
+    };
   }
 
   async uploadAsset(accountId: string, input: GalleryUploadInput): Promise<void> {
@@ -201,18 +315,57 @@ export class GalleryService {
     }
   }
 
-  async updateAsset(assetId: string, update: GalleryAssetUpdate): Promise<void> {
-    const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (update.title !== undefined) payload['title'] = update.title;
-    if (update.caption !== undefined) payload['caption'] = update.caption;
-    if (update.auctionStrategy !== undefined) payload['auction_strategy'] = update.auctionStrategy;
-    if (update.portfolioId !== undefined) payload['portfolio_id'] = update.portfolioId;
-    if (update.rankScore !== undefined) payload['rank_score'] = update.rankScore;
+  async uploadVideo(accountId: string, input: GalleryVideoUploadInput): Promise<void> {
+    const parsed = parseYoutubeUrl(input.sourceUrl);
+    if (!parsed) {
+      throw new Error('Paste a valid YouTube link.');
+    }
 
-    const { error } = await this.supabase.client.from('gallery_assets').update(payload).eq('id', assetId);
+    const {
+      data: { user },
+    } = await this.supabase.client.auth.getUser();
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { error } = await this.supabase.client.from('gallery_videos').insert({
+      account_id: accountId,
+      user_id: user.id,
+      auction_strategy: input.auctionStrategy,
+      portfolio_id: input.portfolioId ?? null,
+      source_url: parsed.sourceUrl,
+      embed_url: parsed.embedUrl,
+      youtube_video_id: parsed.videoId,
+      title: input.title ?? null,
+      caption: input.caption ?? null,
+      published_at: input.publishedAt ?? null,
+      rank_score: input.rankScore ?? null,
+    });
+
     if (error) {
       throw new Error(error.message);
     }
+  }
+
+  async updateAsset(assetId: string, update: GalleryAssetUpdate): Promise<void> {
+    await this.patchRow('gallery_assets', assetId, update as Record<string, unknown>, {
+      title: 'title',
+      caption: 'caption',
+      auctionStrategy: 'auction_strategy',
+      portfolioId: 'portfolio_id',
+      rankScore: 'rank_score',
+    });
+  }
+
+  async updateVideo(videoId: string, update: GalleryVideoUpdate): Promise<void> {
+    await this.patchRow('gallery_videos', videoId, update as Record<string, unknown>, {
+      title: 'title',
+      caption: 'caption',
+      auctionStrategy: 'auction_strategy',
+      portfolioId: 'portfolio_id',
+      rankScore: 'rank_score',
+      publishedAt: 'published_at',
+    });
   }
 
   async deleteAsset(assetId: string, storagePath: string): Promise<void> {
@@ -223,30 +376,27 @@ export class GalleryService {
     await this.media.remove(storagePath);
   }
 
-  async upsertJournalOverride(accountId: string, input: GalleryJournalOverrideInput): Promise<void> {
-    const {
-      data: { user },
-    } = await this.supabase.client.auth.getUser();
-    if (!user) {
-      throw new Error('Not authenticated');
-    }
-
-    const { error } = await this.supabase.client.from('gallery_item_overrides').upsert(
-      {
-        account_id: accountId,
-        user_id: user.id,
-        trade_id: input.tradeId,
-        screenshot_index: input.screenshotIndex,
-        portfolio_id: input.portfolioId ?? null,
-        rank_score: input.rankScore ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'account_id,trade_id,screenshot_index' },
-    );
-
+  async deleteVideo(videoId: string): Promise<void> {
+    const { error } = await this.supabase.client.from('gallery_videos').delete().eq('id', videoId);
     if (error) {
       throw new Error(error.message);
     }
+  }
+
+  async updateJournalImagePost(accountId: string, input: GalleryJournalPostUpdate): Promise<void> {
+    await this.updateJournalPost(accountId, 'image', input.tradeId, {
+      screenshot_index: input.screenshotIndex,
+      portfolio_id: input.portfolioId ?? null,
+      rank_score: input.rankScore ?? null,
+    });
+  }
+
+  async updateJournalVideoPost(accountId: string, input: GalleryVideoJournalPostUpdate): Promise<void> {
+    await this.updateJournalPost(accountId, 'video', input.tradeId, {
+      video_embed_id: input.videoEmbedId,
+      portfolio_id: input.portfolioId ?? null,
+      rank_score: input.rankScore ?? null,
+    });
   }
 
   async createPortfolio(
@@ -346,12 +496,64 @@ export class GalleryService {
     return this.mapComment(data as RawGalleryComment);
   }
 
+  async addVideoComment(
+    accountId: string,
+    body: string,
+    target: { galleryVideoId: string } | { tradeId: string; videoEmbedId: string },
+  ): Promise<GalleryVideoComment> {
+    const {
+      data: { user },
+    } = await this.supabase.client.auth.getUser();
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { data, error } = await this.supabase.client
+      .from('gallery_video_comments')
+      .insert(
+        'galleryVideoId' in target
+          ? {
+              account_id: accountId,
+              user_id: user.id,
+              body: body.trim(),
+              gallery_video_id: target.galleryVideoId,
+              trade_id: null,
+              video_embed_id: null,
+            }
+          : {
+              account_id: accountId,
+              user_id: user.id,
+              body: body.trim(),
+              gallery_video_id: null,
+              trade_id: target.tradeId,
+              video_embed_id: target.videoEmbedId,
+            },
+      )
+      .select('id, user_id, body, gallery_video_id, trade_id, video_embed_id, created_at, updated_at')
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message ?? 'Could not add comment');
+    }
+
+    return this.mapVideoComment(data as RawGalleryVideoComment);
+  }
+
   async updateComment(commentId: string, body: string): Promise<void> {
     const { error } = await this.supabase.client
       .from('gallery_comments')
       .update({ body: body.trim(), updated_at: new Date().toISOString() })
       .eq('id', commentId);
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
 
+  async updateVideoComment(commentId: string, body: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('gallery_video_comments')
+      .update({ body: body.trim(), updated_at: new Date().toISOString() })
+      .eq('id', commentId);
     if (error) {
       throw new Error(error.message);
     }
@@ -362,6 +564,75 @@ export class GalleryService {
     if (error) {
       throw new Error(error.message);
     }
+  }
+
+  async deleteVideoComment(commentId: string): Promise<void> {
+    const { error } = await this.supabase.client.from('gallery_video_comments').delete().eq('id', commentId);
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  private async updateJournalPost(
+    accountId: string,
+    mediaType: 'image' | 'video',
+    tradeId: string,
+    fields: Record<string, unknown>,
+  ): Promise<void> {
+    const {
+      data: { user },
+    } = await this.supabase.client.auth.getUser();
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+
+    let query = this.supabase.client
+      .from('gallery_journal_posts')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('account_id', accountId)
+      .eq('trade_id', tradeId)
+      .eq('media_type', mediaType);
+
+    if (mediaType === 'image') {
+      query = query.eq('screenshot_index', fields['screenshot_index'] as number);
+    } else {
+      query = query.eq('video_embed_id', fields['video_embed_id'] as string);
+    }
+
+    const { error } = await query;
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  private async patchRow(
+    table: string,
+    id: string,
+    update: Record<string, unknown>,
+    fieldMap: Record<string, string>,
+  ): Promise<void> {
+    const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const [key, column] of Object.entries(fieldMap)) {
+      if (update[key] !== undefined) {
+        payload[column] = update[key];
+      }
+    }
+    const { error } = await this.supabase.client.from(table).update(payload).eq('id', id);
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  private postKey(post: RawGalleryJournalPost): string {
+    if (post.media_type === 'image') {
+      return `image:${post.trade_id}:${post.screenshot_index}`;
+    }
+    return `video:${post.trade_id}:${post.video_embed_id}`;
+  }
+
+  private findVideoEmbed(audit: RawAudit | undefined, embedId: string): JournalVideoEmbed | null {
+    const embeds = audit?.pillar_journals?.outcome?.video_embeds ?? [];
+    return embeds.find((e) => e.id === embedId) ?? null;
   }
 
   private async loadPortfolios(accountId: string): Promise<GalleryPortfolio[]> {
@@ -394,17 +665,32 @@ export class GalleryService {
     return (data ?? []) as RawGalleryAsset[];
   }
 
-  private async loadOverrides(accountId: string): Promise<RawGalleryOverride[]> {
+  private async loadStandaloneVideos(accountId: string): Promise<RawGalleryVideo[]> {
     const { data, error } = await this.supabase.client
-      .from('gallery_item_overrides')
-      .select('id, trade_id, screenshot_index, portfolio_id, rank_score')
+      .from('gallery_videos')
+      .select(
+        'id, account_id, auction_strategy, portfolio_id, source_url, embed_url, youtube_video_id, title, caption, published_at, rank_score, created_at',
+      )
       .eq('account_id', accountId);
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return (data ?? []) as RawGalleryOverride[];
+    return (data ?? []) as RawGalleryVideo[];
+  }
+
+  private async loadJournalPosts(accountId: string): Promise<RawGalleryJournalPost[]> {
+    const { data, error } = await this.supabase.client
+      .from('gallery_journal_posts')
+      .select('id, trade_id, media_type, screenshot_index, video_embed_id, posted_at, rank_score, portfolio_id')
+      .eq('account_id', accountId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []) as RawGalleryJournalPost[];
   }
 
   private async loadComments(accountId: string): Promise<GalleryComment[]> {
@@ -421,34 +707,43 @@ export class GalleryService {
     return (data ?? []).map((row) => this.mapComment(row as RawGalleryComment));
   }
 
-  private async loadWinningTrades(accountId: string): Promise<RawWinningTrade[]> {
+  private async loadVideoComments(accountId: string): Promise<GalleryVideoComment[]> {
     const { data, error } = await this.supabase.client
-      .from('trades')
-      .select('id, auction_strategy, trading_date, net_profit, closed_at, symbol')
+      .from('gallery_video_comments')
+      .select('id, user_id, body, gallery_video_id, trade_id, video_embed_id, created_at, updated_at')
       .eq('account_id', accountId)
-      .eq('status', 'CLOSED')
-      .gt('net_profit', 0);
+      .order('created_at');
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return (data ?? []) as RawWinningTrade[];
+    return (data ?? []).map((row) => this.mapVideoComment(row as RawGalleryVideoComment));
   }
 
-  private async loadAuditsForAccount(accountId: string): Promise<Map<string, RawAudit>> {
-    const { data: tradeRows, error: tradeError } = await this.supabase.client
-      .from('trades')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('status', 'CLOSED')
-      .gt('net_profit', 0);
-
-    if (tradeError) {
-      throw new Error(tradeError.message);
+  private async loadTradesByIds(tradeIds: string[]): Promise<Map<string, RawTrade>> {
+    if (tradeIds.length === 0) {
+      return new Map();
     }
 
-    const tradeIds = (tradeRows ?? []).map((row) => row.id as string);
+    const { data, error } = await this.supabase.client
+      .from('trades')
+      .select('id, auction_strategy, trading_date, net_profit, closed_at, symbol')
+      .in('id', tradeIds)
+      .eq('status', 'CLOSED');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const map = new Map<string, RawTrade>();
+    for (const row of (data ?? []) as RawTrade[]) {
+      map.set(row.id, row);
+    }
+    return map;
+  }
+
+  private async loadAuditsForTradeIds(tradeIds: string[]): Promise<Map<string, RawAudit>> {
     if (tradeIds.length === 0) {
       return new Map();
     }
@@ -477,6 +772,22 @@ export class GalleryService {
         key = comment.galleryAssetId;
       } else if (comment.tradeId != null && comment.screenshotIndex != null) {
         key = journalGalleryItemId(comment.tradeId, comment.screenshotIndex);
+      }
+      if (key) {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  private buildVideoCommentCounts(comments: GalleryVideoComment[]): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const comment of comments) {
+      let key: string | null = null;
+      if (comment.galleryVideoId) {
+        key = comment.galleryVideoId;
+      } else if (comment.tradeId && comment.videoEmbedId) {
+        key = journalGalleryVideoItemId(comment.tradeId, comment.videoEmbedId);
       }
       if (key) {
         counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -519,6 +830,19 @@ export class GalleryService {
       galleryAssetId: row.gallery_asset_id,
       tradeId: row.trade_id,
       screenshotIndex: row.screenshot_index,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapVideoComment(row: RawGalleryVideoComment): GalleryVideoComment {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      body: row.body,
+      galleryVideoId: row.gallery_video_id,
+      tradeId: row.trade_id,
+      videoEmbedId: row.video_embed_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

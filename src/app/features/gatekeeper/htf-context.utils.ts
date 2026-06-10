@@ -33,6 +33,7 @@ export function mapContextStepToSnapshot(context: ContextStepValue): HtfContextS
       notes: journal.notes_content.text.trim(),
       note_tags: journal.notes_content.tags,
       screenshots: [],
+      video_embeds: [],
       narrative: emptyNarrativeSnapshot(),
     };
   });

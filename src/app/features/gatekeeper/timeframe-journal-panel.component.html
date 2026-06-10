@@ -19,6 +19,11 @@
     [uploadHint]="copy().uploadHint"
   />
 
+  <app-journal-videos-panel
+    [scope]="screenshotScope()"
+    title="Video links (YouTube)"
+  />
+
   <div class="journal-panel__notes">
     <label class="journal-panel__label" [for]="'notes-' + timeframe()">{{ copy().notesLabel }}</label>
     <app-tagged-notes-editor

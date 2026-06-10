@@ -1,4 +1,5 @@
 import type { AuctionStrategy } from '../../core/models/database.types';
+import type { GalleryVideoComment, GalleryVideoItem } from './gallery-video.types';
 
 export type GalleryItemSource = 'upload' | 'journal';
 export type GallerySourceFilter = 'all' | 'upload' | 'journal';
@@ -44,12 +45,15 @@ export interface GalleryItem {
   netProfit: number | null;
   tradingDate: string | null;
   galleryAssetId: string | null;
+  postedAt: string | null;
 }
 
 export interface GalleryPageData {
   portfolios: GalleryPortfolio[];
   items: GalleryItem[];
   comments: GalleryComment[];
+  videos: GalleryVideoItem[];
+  videoComments: GalleryVideoComment[];
 }
 
 export interface GalleryUploadInput {
@@ -69,7 +73,7 @@ export interface GalleryAssetUpdate {
   rankScore?: number | null;
 }
 
-export interface GalleryJournalOverrideInput {
+export interface GalleryJournalPostUpdate {
   tradeId: string;
   screenshotIndex: number;
   portfolioId?: string | null;
@@ -82,6 +86,11 @@ export function journalGalleryItemId(tradeId: string, screenshotIndex: number): 
 
 export function sortGalleryItems(items: GalleryItem[]): GalleryItem[] {
   return [...items].sort((a, b) => {
+    const postedA = a.postedAt ?? a.sortDate;
+    const postedB = b.postedAt ?? b.sortDate;
+    if (postedA !== postedB) {
+      return postedB.localeCompare(postedA);
+    }
     const rankA = a.rankScore ?? 0;
     const rankB = b.rankScore ?? 0;
     if (rankA !== rankB) {

@@ -2,6 +2,7 @@ import type {
   AnalyzedTimeframe,
   AssetSymbol,
   AuctionStrategy,
+  JournalVideoEmbed,
   PillarStepKey,
   TimeframeScreenshotRef,
   TradeSessionContext,
@@ -20,6 +21,8 @@ export interface GatekeeperDraftUiState {
 export interface GatekeeperDraftMedia {
   htf: Partial<Record<AnalyzedTimeframe, TimeframeScreenshotRef[]>>;
   pillars: Partial<Record<PillarStepKey, TimeframeScreenshotRef[]>>;
+  htf_videos: Partial<Record<AnalyzedTimeframe, JournalVideoEmbed[]>>;
+  pillar_videos: Partial<Record<PillarStepKey, JournalVideoEmbed[]>>;
 }
 
 export interface GatekeeperDraftRow {
@@ -94,7 +97,7 @@ export function validateJournalName(name: string): string | null {
   return null;
 }
 
-export const EMPTY_DRAFT_MEDIA: GatekeeperDraftMedia = { htf: {}, pillars: {} };
+export const EMPTY_DRAFT_MEDIA: GatekeeperDraftMedia = { htf: {}, pillars: {}, htf_videos: {}, pillar_videos: {} };
 
 export const DEFAULT_DRAFT_UI_STATE: GatekeeperDraftUiState = {
   active_step: 1,

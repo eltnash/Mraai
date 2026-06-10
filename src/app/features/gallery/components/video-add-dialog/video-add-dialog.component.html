@@ -1,0 +1,36 @@
+<p-dialog
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  header="Add video link"
+  [style]="{ width: 'min(92vw, 480px)' }"
+>
+  <div class="video-add__field">
+    <label for="video-add-url">YouTube URL</label>
+    <input pInputText id="video-add-url" [ngModel]="sourceUrl()" (ngModelChange)="sourceUrl.set($event)" />
+  </div>
+  <div class="video-add__field">
+    <label for="video-add-strategy">Strategy</label>
+    <p-select
+      inputId="video-add-strategy"
+      [options]="strategyOptions"
+      [ngModel]="auctionStrategy()"
+      (ngModelChange)="onStrategyChange($event)"
+      optionLabel="label"
+      optionValue="value"
+      styleClass="video-add__select"
+    />
+  </div>
+  <div class="video-add__field">
+    <label for="video-add-title">Title (optional)</label>
+    <input pInputText id="video-add-title" [ngModel]="title()" (ngModelChange)="title.set($event)" />
+  </div>
+  <div class="video-add__field">
+    <label for="video-add-published">Published date (optional)</label>
+    <input pInputText id="video-add-published" type="date" [ngModel]="publishedAt()" (ngModelChange)="publishedAt.set($event)" />
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancel" [text]="true" (onClick)="visibleChange.emit(false)" />
+    <p-button label="Add" (onClick)="submit()" [loading]="saving()" [disabled]="!sourceUrl().trim()" />
+  </ng-template>
+</p-dialog>

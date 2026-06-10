@@ -6,13 +6,19 @@ import {
   ElementRef,
   inject,
   input,
+  OnInit,
   signal,
   viewChild,
 } from '@angular/core';
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 
 import { ImageAnnotatorDialogComponent } from '../../../shared/components/image-annotator-dialog/image-annotator-dialog.component';
+import {
+  GalleryJournalPostService,
+  type GalleryJournalPostRow,
+} from '../../gallery/gallery-journal-post.service';
 import { GatekeeperDraftService } from '../gatekeeper-draft.service';
 import {
   GatekeeperScreenshotDraftService,
@@ -32,9 +38,11 @@ import {
   styleUrl: './journal-screenshots-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class JournalScreenshotsPanelComponent {
+export class JournalScreenshotsPanelComponent implements OnInit {
   private readonly screenshotDrafts = inject(GatekeeperScreenshotDraftService);
   private readonly draftService = inject(GatekeeperDraftService);
+  private readonly galleryPosts = inject(GalleryJournalPostService);
+  private readonly messageService = inject(MessageService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly fileInputRef = viewChild<ElementRef<HTMLInputElement>>('fileInput');
   private readonly pendingUploads = new Map<string, Promise<void>>();
@@ -45,8 +53,13 @@ export class JournalScreenshotsPanelComponent {
   readonly uploadHint = input(
     'Drag images here, choose files, or paste from your clipboard. You can add multiple charts.',
   );
+  readonly showGalleryActions = input(false);
+  readonly tradeId = input<string | null>(null);
+  readonly accountId = input<string | null>(null);
 
   protected readonly annotatorOpen = signal(false);
+  protected readonly postedRows = signal<GalleryJournalPostRow[]>([]);
+  protected readonly galleryBusyIndex = signal<number | null>(null);
   protected readonly annotatingItemId = signal<string | null>(null);
   protected readonly uploadError = signal<string | null>(null);
   protected readonly pasting = signal(false);
@@ -65,8 +78,59 @@ export class JournalScreenshotsPanelComponent {
     return this.screenshotItems().find((item) => item.id === itemId) ?? null;
   });
 
+  ngOnInit(): void {
+    if (this.showGalleryActions() && this.tradeId()) {
+      void this.refreshPosted();
+    }
+  }
+
   handlePaste(file: File): boolean {
     return this.applyScreenshotFile(file);
+  }
+
+  protected screenshotIndex(itemId: string): number {
+    return this.screenshotItems().findIndex((item) => item.id === itemId);
+  }
+
+  protected isImagePosted(index: number): boolean {
+    return this.galleryPosts.isImagePosted(this.postedRows(), index);
+  }
+
+  protected async toggleGalleryPost(index: number): Promise<void> {
+    const tradeId = this.tradeId();
+    const accountId = this.accountId();
+    if (!tradeId || !accountId || index < 0) {
+      return;
+    }
+
+    this.galleryBusyIndex.set(index);
+    try {
+      if (this.isImagePosted(index)) {
+        await this.galleryPosts.unpost({ tradeId, mediaType: 'image', screenshotIndex: index });
+        this.messageService.add({ severity: 'info', summary: 'Gallery', detail: 'Removed from gallery.' });
+      } else {
+        await this.galleryPosts.post(accountId, { tradeId, mediaType: 'image', screenshotIndex: index });
+        this.messageService.add({ severity: 'success', summary: 'Gallery', detail: 'Posted to gallery.' });
+      }
+      await this.refreshPosted();
+    } catch (err) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Gallery',
+        detail: err instanceof Error ? err.message : 'Could not update gallery',
+      });
+    } finally {
+      this.galleryBusyIndex.set(null);
+      this.cdr.markForCheck();
+    }
+  }
+
+  private async refreshPosted(): Promise<void> {
+    const tradeId = this.tradeId();
+    if (!tradeId) {
+      return;
+    }
+    this.postedRows.set(await this.galleryPosts.loadPostedForTrade(tradeId));
   }
 
   protected openFilePicker(): void {

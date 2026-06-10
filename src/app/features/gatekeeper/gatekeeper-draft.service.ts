@@ -5,6 +5,7 @@ import type {
   AnalyzedTimeframe,
   AssetSymbol,
   HtfContextSnapshot,
+  JournalVideoEmbed,
   PillarJournalsSnapshot,
   PillarStepKey,
   TimeframeScreenshotRef,
@@ -88,6 +89,50 @@ export class GatekeeperDraftService {
 
   getMedia(): GatekeeperDraftMedia {
     return this.mediaState();
+  }
+
+  getVideoEmbeds(scope: JournalScreenshotScope): JournalVideoEmbed[] {
+    const media = this.mediaState();
+    if (scope.kind === 'htf') {
+      return media.htf_videos[scope.id as AnalyzedTimeframe] ?? [];
+    }
+    return media.pillar_videos[scope.id as PillarStepKey] ?? [];
+  }
+
+  async setVideoEmbeds(scope: JournalScreenshotScope, embeds: JournalVideoEmbed[]): Promise<void> {
+    const current = this.mediaState();
+    const next =
+      scope.kind === 'htf'
+        ? {
+            ...current,
+            htf_videos: {
+              ...current.htf_videos,
+              [scope.id as AnalyzedTimeframe]: embeds,
+            },
+          }
+        : {
+            ...current,
+            pillar_videos: {
+              ...current.pillar_videos,
+              [scope.id as PillarStepKey]: embeds,
+            },
+          };
+
+    this.mediaState.set(next);
+    await this.persistMedia(next);
+  }
+
+  async getTradeStatus(tradeId: string): Promise<'OPEN' | 'CLOSED' | null> {
+    const { data, error } = await this.supabase.client
+      .from('trades')
+      .select('status')
+      .eq('id', tradeId)
+      .maybeSingle();
+
+    if (error || !data?.status) {
+      return null;
+    }
+    return data.status === 'CLOSED' ? 'CLOSED' : 'OPEN';
   }
 
   bindSession(sessionState: TradingSessionState | null): void {

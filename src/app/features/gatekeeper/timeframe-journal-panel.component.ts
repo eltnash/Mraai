@@ -12,13 +12,19 @@ import type { AnalyzedTimeframe } from '../../core/models/database.types';
 import { TaggedNotesEditorComponent } from '../../shared/components/tagged-notes-editor/tagged-notes-editor.component';
 import type { JournalScreenshotScope } from './gatekeeper-screenshot-draft.service';
 import { JournalScreenshotsPanelComponent } from './journal-screenshots-panel/journal-screenshots-panel.component';
+import { JournalVideosPanelComponent } from './journal-videos-panel/journal-videos-panel.component';
 import { timeframeLabel } from './htf-context.utils';
 import { journalCopyForTimeframe } from './timeframe-journal.config';
 import { readImageFromClipboardEvent } from './screenshot-upload.utils';
 
 @Component({
   selector: 'app-timeframe-journal-panel',
-  imports: [ReactiveFormsModule, JournalScreenshotsPanelComponent, TaggedNotesEditorComponent],
+  imports: [
+    ReactiveFormsModule,
+    JournalScreenshotsPanelComponent,
+    JournalVideosPanelComponent,
+    TaggedNotesEditorComponent,
+  ],
   templateUrl: './timeframe-journal-panel.component.html',
   styleUrl: './timeframe-journal-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

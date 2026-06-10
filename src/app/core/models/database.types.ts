@@ -151,6 +151,15 @@ export interface TimeframeScreenshotRef {
   is_annotated: boolean;
 }
 
+export interface JournalVideoEmbed {
+  id: string;
+  source_url: string;
+  embed_url: string;
+  provider: 'youtube';
+  title: string | null;
+  published_at: string | null;
+}
+
 export interface JournalNoteTag {
   id: string;
   label: string;
@@ -164,6 +173,7 @@ export interface TimeframeJournalEntry {
   notes: string;
   note_tags: JournalNoteTag[];
   screenshots: TimeframeScreenshotRef[];
+  video_embeds: JournalVideoEmbed[];
   narrative: HtfNarrativeSnapshot;
 }
 
@@ -188,6 +198,7 @@ export interface PillarStepJournal {
   notes: string;
   note_tags: JournalNoteTag[];
   screenshots: TimeframeScreenshotRef[];
+  video_embeds: JournalVideoEmbed[];
 }
 
 export interface PillarJournalsSnapshot {

@@ -62,6 +62,7 @@ import { GatekeeperDraftService } from './gatekeeper-draft.service';
 import { GatekeeperSubmitService } from './gatekeeper-submit.service';
 import type { GatekeeperDraftLoadResult, GatekeeperDraftMedia } from './gatekeeper-draft.types';
 import { GatekeeperScreenshotDraftService } from './gatekeeper-screenshot-draft.service';
+import { GatekeeperVideoDraftService } from './gatekeeper-video-draft.service';
 import {
   EXECUTION_TIMEFRAME,
   formatHtfContextSummary,
@@ -118,6 +119,7 @@ export class GatekeeperWizardComponent {
   private readonly fb = inject(FormBuilder);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly screenshotDrafts = inject(GatekeeperScreenshotDraftService);
+  private readonly videoDrafts = inject(GatekeeperVideoDraftService);
   private readonly draftService = inject(GatekeeperDraftService);
   private readonly submitService = inject(GatekeeperSubmitService);
   private readonly messageService = inject(MessageService);
@@ -715,6 +717,7 @@ export class GatekeeperWizardComponent {
     this.form.reset();
     this.retestInteracted.set(false);
     this.screenshotDrafts.clearAll();
+    this.videoDrafts.clearAll();
     this.executionPanelRef()?.resetForm();
     this.submittedAudit.set(null);
     this.activeStep.set(1);
@@ -724,15 +727,30 @@ export class GatekeeperWizardComponent {
 
   async loadFromDraft(result: GatekeeperDraftLoadResult): Promise<void> {
     this.screenshotDrafts.clearAll();
+    this.videoDrafts.clearAll();
     this.form.patchValue(result.wizardForm, { emitEvent: false });
     syncGatekeeperFormValidators(this.form);
     this.activeStep.set(result.uiState.active_step);
     this.activeTimeframeTab.set(result.uiState.active_timeframe_tab);
     this.retestInteracted.set(result.uiState.active_step >= 3);
     await this.hydrateScreenshots(result.media);
+    this.hydrateVideos(result.media);
     this.formTick.update((n) => n + 1);
     this.emitState();
     this.cdr.markForCheck();
+  }
+
+  private hydrateVideos(media: GatekeeperDraftMedia): void {
+    for (const [tf, embeds] of Object.entries(media.htf_videos ?? {})) {
+      if (embeds?.length) {
+        this.videoDrafts.hydrateScope({ kind: 'htf', id: tf as AnalyzedTimeframe }, embeds);
+      }
+    }
+    for (const [step, embeds] of Object.entries(media.pillar_videos ?? {})) {
+      if (embeds?.length) {
+        this.videoDrafts.hydrateScope({ kind: 'pillar', id: step as PillarStepKey }, embeds);
+      }
+    }
   }
 
   private async hydrateScreenshots(media: GatekeeperDraftMedia): Promise<void> {
