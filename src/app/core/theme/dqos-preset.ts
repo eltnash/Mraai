@@ -67,5 +67,30 @@ export const DqosDarkPreset = definePreset(Aura, {
         },
       },
     },
+    togglebutton: {
+      colorScheme: {
+        dark: {
+          root: {
+            background: '{content.background}',
+            borderColor: '{content.borderColor}',
+            color: '{surface.600}',
+            hoverBackground: '{content.hoverBackground}',
+            hoverColor: '{surface.700}',
+            checkedBackground: '{content.background}',
+            checkedBorderColor: 'color-mix(in srgb, {primary.400} 55%, {content.borderColor})',
+            checkedColor: '{primary.400}',
+          },
+          content: {
+            checkedBackground: 'color-mix(in srgb, {primary.500} 20%, {content.background})',
+            checkedShadow: 'none',
+          },
+          icon: {
+            color: '{surface.600}',
+            hoverColor: '{surface.700}',
+            checkedColor: '{primary.400}',
+          },
+        },
+      },
+    },
   },
 });
