@@ -5,7 +5,7 @@ import type {
 } from '../../core/models/database.types';
 import { HTF_ANALYSIS_TOOL_OPTIONS } from '../../core/supabase/enum-options';
 import type { ContextStepValue, GatekeeperFormValue, HtfNarrativeFormValue } from './gatekeeper-form.types';
-import { narrativeFieldKeysForTimeframe } from './htf-timeframe-narrative.config';
+import { htfContextNarrativeFieldKeys } from './htf-timeframe-narrative.config';
 
 const TIMEFRAME_LABELS: Record<AnalyzedTimeframe, string> = {
   M: 'Monthly',
@@ -19,7 +19,15 @@ function mapNarrativeToSnapshot(
   narrative: HtfNarrativeFormValue,
   tf: AnalyzedTimeframe,
 ): HtfNarrativeSnapshot {
-  const fieldKeys = narrativeFieldKeysForTimeframe(tf);
+  const fieldKeys = htfContextNarrativeFieldKeys(tf);
+
+  if (fieldKeys.length === 0) {
+    return {
+      value_migration: '',
+      tools_used: [],
+      htf_trade_posture: '',
+    };
+  }
 
   if (fieldKeys.includes('composite_va_position') && !narrative.composite_va_position) {
     throw new Error(`Complete the ${TIMEFRAME_LABELS[tf]} narrative Q&A`);
@@ -59,10 +67,7 @@ export function mapContextStepToSnapshot(context: ContextStepValue): HtfContextS
     (tf) => context.analyzed_timeframes[tf],
   );
 
-  const timeframesForSnapshot = new Set<AnalyzedTimeframe>(selected);
-  timeframesForSnapshot.add('D');
-
-  const timeframe_entries = [...timeframesForSnapshot].map((tf) => {
+  const timeframe_entries = selected.map((tf) => {
     const journal = context.timeframe_journals[tf];
     return {
       timeframe: tf,

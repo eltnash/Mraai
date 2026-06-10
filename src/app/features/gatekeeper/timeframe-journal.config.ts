@@ -36,7 +36,7 @@ export const TIMEFRAME_JOURNAL_COPY: Record<AnalyzedTimeframe, TimeframeJournalC
   D: {
     ...DEFAULT_JOURNAL_COPY,
     notesPlaceholder:
-      'Developing day type, session value, and daily structure — daily context Q&A is on the Auction Type step.',
+      'Developing day type, session value, and daily structure feeding into 15m execution…',
   },
   H4: {
     ...DEFAULT_JOURNAL_COPY,

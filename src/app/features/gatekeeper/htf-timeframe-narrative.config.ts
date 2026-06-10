@@ -178,10 +178,7 @@ const MONTHLY_NARRATIVE: TimeframeNarrativeConfig = {
 
 const DAILY_NARRATIVE: TimeframeNarrativeConfig = {
   intro: {
-    heading: 'Daily context — developing session value',
-    paragraphs: [
-      'How is today developing relative to prior day value? Read day type character and whether the session is accepting or rejecting key references.',
-    ],
+    paragraphs: [],
   },
   toolsReference: {
     heading: 'Daily tools to reference',
@@ -348,4 +345,12 @@ export function timeframeNarrativeConfig(tf: AnalyzedTimeframe): TimeframeNarrat
 
 export function narrativeFieldKeysForTimeframe(tf: AnalyzedTimeframe): TimeframeNarrativeFieldKey[] {
   return TIMEFRAME_NARRATIVE_CONFIG[tf].fields.map((field) => field.key);
+}
+
+/** Daily HTF journal is chart + notes only — no narrative Q&A. */
+export function htfContextNarrativeFieldKeys(tf: AnalyzedTimeframe): TimeframeNarrativeFieldKey[] {
+  if (tf === 'D') {
+    return [];
+  }
+  return narrativeFieldKeysForTimeframe(tf);
 }
