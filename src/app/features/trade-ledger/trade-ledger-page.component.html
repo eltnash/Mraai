@@ -2,7 +2,7 @@
   <div>
     <h1 class="ledger-header__title">Trade history</h1>
     <p class="ledger-header__subtitle">
-      Platform-style ledger of Gatekeeper execution trades — same columns as MT5 account history.
+      Platform-style ledger of Gatekeeper execution trades — same columns as MT5 account history. Click a row to open its journal.
     </p>
     <p class="ledger-header__meta data-mono">{{ pageLabel() }}</p>
   </div>
@@ -53,7 +53,16 @@
         </thead>
         <tbody>
           @for (row of rows(); track row.tradeId) {
-            <tr class="ledger-table__row">
+            <tr
+              class="ledger-table__row ledger-table__row--clickable"
+              [class.ledger-table__row--opening]="openingTradeId() === row.tradeId"
+              tabindex="0"
+              role="link"
+              [attr.aria-label]="'Open journal for trade ' + (row.ticket ?? row.tradeId)"
+              (click)="openJournal(row.tradeId)"
+              (keydown.enter)="openJournal(row.tradeId)"
+              (keydown.space)="$event.preventDefault(); openJournal(row.tradeId)"
+            >
               <td class="data-mono">{{ formatMt5DateTime(row.entryTime) }}</td>
               <td class="data-mono ledger-table__ticket">{{ row.ticket }}</td>
               <td>

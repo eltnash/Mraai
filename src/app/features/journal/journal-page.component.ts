@@ -190,7 +190,7 @@ export class JournalPageComponent implements OnInit {
   protected confirmDelete(journal: GatekeeperJournalSummary): void {
     this.confirmationService.confirm({
       header: 'Delete journal permanently?',
-      message: `"${journal.journal_name}" and all saved screenshots will be removed. This cannot be undone.`,
+      message: `"${journal.journal_name}", its linked trade in Trade History, screenshots, and audit data will be permanently removed. This cannot be undone.`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Delete',
       rejectLabel: 'Cancel',

@@ -6,11 +6,12 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MessageModule } from 'primeng/message';
 import { PaginatorModule, type PaginatorState } from 'primeng/paginator';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
+import { GatekeeperDraftService } from '../gatekeeper/gatekeeper-draft.service';
 import { TradeLedgerService } from './trade-ledger.service';
 import {
   TRADE_LEDGER_PAGE_SIZE,
@@ -33,8 +34,11 @@ import {
 })
 export class TradeLedgerPageComponent implements OnInit {
   private readonly ledgerService = inject(TradeLedgerService);
+  private readonly draftService = inject(GatekeeperDraftService);
+  private readonly router = inject(Router);
 
   protected readonly loading = signal(true);
+  protected readonly openingTradeId = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly rows = signal<TradeLedgerRow[]>([]);
   protected readonly totalCount = signal(0);
@@ -70,6 +74,24 @@ export class TradeLedgerPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.loadPage(0);
+  }
+
+  protected async openJournal(tradeId: string): Promise<void> {
+    if (this.openingTradeId()) {
+      return;
+    }
+
+    this.openingTradeId.set(tradeId);
+    this.error.set(null);
+
+    try {
+      await this.draftService.ensureJournalForTrade(tradeId);
+      await this.router.navigate(['/gatekeeper'], { queryParams: { journalId: tradeId } });
+    } catch (err) {
+      this.error.set(err instanceof Error ? err.message : 'Could not open journal');
+    } finally {
+      this.openingTradeId.set(null);
+    }
   }
 
   protected onPageChange(event: PaginatorState): void {

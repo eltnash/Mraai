@@ -4,6 +4,8 @@ import { Subject, debounceTime } from 'rxjs';
 import type {
   AnalyzedTimeframe,
   AssetSymbol,
+  HtfContextSnapshot,
+  PillarJournalsSnapshot,
   PillarStepKey,
   TimeframeScreenshotRef,
   TradeDirection,
@@ -39,6 +41,7 @@ import {
 import type { ExecutionFormValue } from './execution-block.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
 import type { JournalScreenshotScope } from './gatekeeper-screenshot-draft.service';
+import { PILLAR_STEP_KEYS } from './pillar-context.utils';
 import type { TradingSessionState } from './trading-session.types';
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -551,7 +554,66 @@ export class GatekeeperDraftService {
       throw new Error('Sign in to delete journals.');
     }
 
-    await this.removeDraftWithMedia(draftId, user.id);
+    const { data: draft, error: draftError } = await this.supabase.client
+      .from('gatekeeper_drafts')
+      .select('id, trade_id, media')
+      .eq('id', draftId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (draftError) {
+      throw new Error(this.formatDraftError(draftError));
+    }
+
+    if (!draft) {
+      throw new Error('Journal not found or you do not have access.');
+    }
+
+    const media = normalizeDraftMedia(draft.media);
+    const tradeId = (draft.trade_id as string | null) ?? draftId;
+
+    await this.deleteLinkedTrade(user.id, tradeId, media);
+    await this.removeDraftWithMedia(draftId, user.id, media, { skipStorage: true });
+  }
+
+  /** Ensures a gatekeeper_drafts row exists for a ledger trade (e.g. before opening from Trade History). */
+  async ensureJournalForTrade(tradeId: string): Promise<void> {
+    const {
+      data: { user },
+    } = await this.supabase.client.auth.getUser();
+    if (!user) {
+      throw new Error('Sign in to open journals.');
+    }
+
+    const { data: existing } = await this.supabase.client
+      .from('gatekeeper_drafts')
+      .select('id')
+      .eq('id', tradeId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existing) {
+      return;
+    }
+
+    const { data: trade, error: tradeError } = await this.supabase.client
+      .from('trades')
+      .select(
+        'id, symbol, direction, trading_date, session_context, opened_at, closed_at, entry_price, stop_price, exit_price, size, commissions, net_profit, notes, updated_at',
+      )
+      .eq('id', tradeId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tradeError) {
+      throw new Error(tradeError.message);
+    }
+
+    if (!trade) {
+      throw new Error('No journal exists for this trade.');
+    }
+
+    await this.insertRecoveredDraft(user.id, trade);
   }
 
   peekExecutionSnapshot(): ExecutionFormValue | null {
@@ -984,10 +1046,81 @@ export class GatekeeperDraftService {
     }
   }
 
+  private async deleteLinkedTrade(
+    userId: string,
+    tradeId: string,
+    draftMedia: GatekeeperDraftMedia,
+  ): Promise<void> {
+    const client = this.supabase.client;
+
+    const { data: trade } = await client
+      .from('trades')
+      .select('id')
+      .eq('id', tradeId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!trade) {
+      return;
+    }
+
+    const { data: audit } = await client
+      .from('execution_audits')
+      .select('htf_context, pillar_journals')
+      .eq('trade_id', tradeId)
+      .maybeSingle();
+
+    const paths = new Set([
+      ...this.collectMediaStoragePaths(draftMedia),
+      ...this.collectAuditScreenshotPaths(
+        audit?.htf_context as HtfContextSnapshot | null,
+        audit?.pillar_journals as PillarJournalsSnapshot | null,
+      ),
+    ]);
+
+    if (paths.size > 0) {
+      const { error: storageError } = await client.storage
+        .from('trade-screenshots')
+        .remove([...paths]);
+      if (storageError) {
+        throw new Error(storageError.message);
+      }
+    }
+
+    const { error: tradeError } = await client.from('trades').delete().eq('id', tradeId).eq('user_id', userId);
+    if (tradeError) {
+      throw new Error(tradeError.message);
+    }
+  }
+
+  private collectAuditScreenshotPaths(
+    htfContext: HtfContextSnapshot | null | undefined,
+    pillarJournals: PillarJournalsSnapshot | null | undefined,
+  ): string[] {
+    const paths: string[] = [];
+
+    for (const entry of htfContext?.timeframe_entries ?? []) {
+      for (const shot of entry.screenshots ?? []) {
+        paths.push(shot.storage_path);
+      }
+    }
+
+    if (pillarJournals) {
+      for (const step of PILLAR_STEP_KEYS) {
+        for (const shot of pillarJournals[step]?.screenshots ?? []) {
+          paths.push(shot.storage_path);
+        }
+      }
+    }
+
+    return paths;
+  }
+
   private async removeDraftWithMedia(
     draftId: string,
     userId: string,
     mediaHint?: GatekeeperDraftMedia,
+    options?: { skipStorage?: boolean },
   ): Promise<void> {
     let media = mediaHint;
     if (!media) {
@@ -1009,11 +1142,15 @@ export class GatekeeperDraftService {
       media = normalizeDraftMedia(data.media);
     }
 
-    const paths = this.collectMediaStoragePaths(media);
-    if (paths.length > 0) {
-      const { error: storageError } = await this.supabase.client.storage.from('trade-screenshots').remove(paths);
-      if (storageError) {
-        throw new Error(storageError.message);
+    if (!options?.skipStorage) {
+      const paths = this.collectMediaStoragePaths(media);
+      if (paths.length > 0) {
+        const { error: storageError } = await this.supabase.client.storage
+          .from('trade-screenshots')
+          .remove(paths);
+        if (storageError) {
+          throw new Error(storageError.message);
+        }
       }
     }
 
