@@ -20,14 +20,14 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
-import { SelectButtonModule } from 'primeng/selectbutton';
+import { TagModule } from 'primeng/tag';
 
+import { accountTypeLabel } from '../../core/accounts/account.utils';
 import { AccountRiskService } from '../../core/accounts/account-risk.service';
 import { formatRiskAlertDetail } from '../../core/accounts/account-risk.utils';
 import { AccountScopeService } from '../../core/accounts/account-scope.service';
 import { validateDrawdownHierarchy } from '../../core/accounts/drawdown-limits.utils';
 import { TradingAccountService } from '../../core/accounts/trading-account.service';
-import type { TradingAccountType } from '../../core/models/database.types';
 
 function drawdownHierarchyValidator(control: AbstractControl): ValidationErrors | null {
   const daily = Number(control.get('daily_drawdown_pct')?.value);
@@ -49,7 +49,7 @@ function drawdownHierarchyValidator(control: AbstractControl): ValidationErrors 
     ReactiveFormsModule,
     InputTextModule,
     InputNumberModule,
-    SelectButtonModule,
+    TagModule,
     ButtonModule,
     MessageModule,
     ConfirmDialogModule,
@@ -88,15 +88,11 @@ export class AccountSettingsPageComponent implements OnInit {
     return null;
   });
 
-  protected readonly typeOptions = [
-    { label: 'Demo', value: 'demo' as const },
-    { label: 'Live', value: 'live' as const },
-  ];
+  protected readonly typeLabel = accountTypeLabel;
 
   protected readonly form = this.fb.nonNullable.group(
     {
       name: ['', [Validators.required, Validators.minLength(2)]],
-      account_type: ['demo' as TradingAccountType, Validators.required],
       starting_capital: [10_000, [Validators.required, Validators.min(0.01)]],
       daily_drawdown_pct: [5, [Validators.required, Validators.min(0.01)]],
       weekly_drawdown_pct: [8, [Validators.required, Validators.min(0.01)]],
@@ -127,7 +123,6 @@ export class AccountSettingsPageComponent implements OnInit {
 
     this.form.patchValue({
       name: acc.name,
-      account_type: acc.account_type,
       starting_capital: acc.starting_capital != null ? Number(acc.starting_capital) : 10_000,
       daily_drawdown_pct: daily,
       weekly_drawdown_pct: weekly,

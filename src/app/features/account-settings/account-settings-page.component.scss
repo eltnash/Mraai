@@ -35,6 +35,20 @@
     color: #9ca3af;
   }
 
+  &__mode {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  &__mode-hint {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #6b7280;
+    line-height: 1.45;
+  }
+
   &__hint {
     margin: 1rem 0 0.25rem;
     font-size: 0.75rem;

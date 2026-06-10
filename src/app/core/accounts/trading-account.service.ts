@@ -10,7 +10,6 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 export interface TradingAccountSettingsInput {
   name: string;
-  account_type: TradingAccountType;
   starting_capital: number;
   daily_drawdown_pct: number;
   weekly_drawdown_pct: number;
@@ -144,7 +143,6 @@ export class TradingAccountService {
 
     const updatePayload: Record<string, unknown> = {
       name: input.name.trim(),
-      account_type: input.account_type,
       currency: input.currency ?? 'USD',
       starting_capital: input.starting_capital,
       daily_drawdown_pct: input.daily_drawdown_pct,

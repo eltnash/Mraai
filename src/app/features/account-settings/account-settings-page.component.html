@@ -20,13 +20,14 @@
     <input id="account-name" pInputText type="text" formControlName="name" class="account-settings__input" />
 
     <label class="account-settings__label">Mode</label>
-    <p-selectbutton
-      formControlName="account_type"
-      [options]="typeOptions"
-      optionLabel="label"
-      optionValue="value"
-      [allowEmpty]="false"
-    />
+    @if (account(); as acc) {
+      <div class="account-settings__mode">
+        <p-tag [value]="typeLabel(acc.account_type)" severity="secondary" />
+        <p class="account-settings__mode-hint">
+          Set when the account was created and cannot be changed. Create a new account for a different mode.
+        </p>
+      </div>
+    }
 
     <label class="account-settings__label" for="starting-capital">Starting capital</label>
     <p-inputnumber
