@@ -1,13 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 
-import type { PillarJournalsSnapshot, PillarStepJournal } from '../../core/models/database.types';
+import type {
+  PillarJournalsSnapshot,
+  PillarStepJournal,
+  TimeframeScreenshotRef,
+} from '../../core/models/database.types';
 import { GatekeeperMediaService, type ScreenshotUploadDraft } from '../../core/supabase/gatekeeper-media.service';
 import { SupabaseService } from '../../core/supabase/supabase.service';
 import { taggedNotesPlainText } from '../../shared/components/tagged-notes-editor/tagged-notes.utils';
 import type { GatekeeperSubmitPayload, GatekeeperSubmitResult } from './execution-block.types';
 import type { GatekeeperFormValue, OutcomeStepValue } from './gatekeeper-form.types';
 import { GatekeeperDraftService } from './gatekeeper-draft.service';
-import { GatekeeperScreenshotDraftService } from './gatekeeper-screenshot-draft.service';
+import {
+  GatekeeperScreenshotDraftService,
+  type JournalScreenshotItem,
+} from './gatekeeper-screenshot-draft.service';
 import { QUALIFICATION_PILLAR_KEYS } from './pillar-context.utils';
 
 @Injectable({ providedIn: 'root' })
@@ -139,8 +146,8 @@ export class GatekeeperSubmitService {
       throw new Error('Not authenticated');
     }
 
-    const draftItems = this.toUploadDrafts(this.screenshotDrafts.getItems({ kind: 'pillar', id: 'outcome' }));
-    if (!draftItems.length) {
+    const items = this.screenshotDrafts.getItems({ kind: 'pillar', id: 'outcome' });
+    if (!items.length) {
       throw new Error('Add at least one outcome screenshot');
     }
 
@@ -162,17 +169,14 @@ export class GatekeeperSubmitService {
       screenshots: [],
     };
 
-    const outcomeWithScreens = await this.mediaService.attachPillarStepScreenshots(
-      user.id,
-      tradeId,
-      'outcome',
-      outcomeJournal,
-      draftItems,
-    );
+    const screenshots = await this.resolveOutcomeScreenshotRefs(user.id, tradeId, items);
 
     await this.mediaService.updateAuditPillarJournals(auditId, {
       ...current,
-      outcome: outcomeWithScreens,
+      outcome: {
+        ...outcomeJournal,
+        screenshots,
+      },
     });
   }
 
@@ -181,21 +185,56 @@ export class GatekeeperSubmitService {
     this.draftService.clearActive();
   }
 
-  private toUploadDrafts(
-    items: ReturnType<GatekeeperScreenshotDraftService['getItems']>,
-  ): ScreenshotUploadDraft[] {
-    return items.map((item) => {
-      if (!item.file) {
-        throw new Error(`Outcome screenshot "${item.fileName}" is missing its file data`);
+  private async resolveOutcomeScreenshotRefs(
+    userId: string,
+    tradeId: string,
+    items: JournalScreenshotItem[],
+  ): Promise<TimeframeScreenshotRef[]> {
+    const refs: TimeframeScreenshotRef[] = [];
+    const pendingUploads: ScreenshotUploadDraft[] = [];
+
+    for (const item of items) {
+      if (item.storagePath) {
+        refs.push({
+          storage_path: item.storagePath,
+          file_name: item.fileName,
+          mime_type: item.mimeType,
+          is_annotated: item.isAnnotated,
+        });
+        continue;
       }
 
-      return {
+      if (!item.file) {
+        throw new Error(
+          `Outcome screenshot "${item.fileName}" is still uploading — wait a moment and try again.`,
+        );
+      }
+
+      pendingUploads.push({
         file: item.file,
         fileName: item.fileName,
         mimeType: item.mimeType,
         isAnnotated: item.isAnnotated,
-      };
-    });
+      });
+    }
+
+    if (pendingUploads.length > 0) {
+      const uploaded = await this.mediaService.attachPillarStepScreenshots(
+        userId,
+        tradeId,
+        'outcome',
+        {
+          focus_timeframe: 'M15',
+          notes: '',
+          note_tags: [],
+          screenshots: [],
+        },
+        pendingUploads,
+      );
+      refs.push(...uploaded.screenshots);
+    }
+
+    return refs;
   }
 
   private assertDraftMediaComplete(form: GatekeeperFormValue): void {
