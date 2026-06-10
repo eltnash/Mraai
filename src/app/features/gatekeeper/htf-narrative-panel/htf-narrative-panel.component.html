@@ -62,8 +62,8 @@
             }
             <app-enum-pill-select
               formControlName="composite_va_position"
-              ariaLabel="Composite value area position"
-              [options]="compositeVaOptions"
+              [ariaLabel]="field.label"
+              [options]="compositeVaOptionsFor(field)"
             />
           </div>
         }

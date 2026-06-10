@@ -1,4 +1,6 @@
-import type { AnalyzedTimeframe, HtfAnalysisTool } from '../../core/models/database.types';
+import type { AnalyzedTimeframe, CompositeValuePosition, HtfAnalysisTool } from '../../core/models/database.types';
+import type { SelectOption } from '../../core/supabase/enum-options';
+import { DEVELOPING_VALUE_POSITION_OPTIONS } from '../../core/supabase/enum-options';
 import type { HtfNarrativeBlock } from './htf-narrative.content';
 
 export type TimeframeNarrativeFieldKey =
@@ -23,6 +25,8 @@ export interface TimeframeNarrativeFieldConfig {
   label: string;
   prompt?: string;
   placeholder?: string;
+  /** Overrides default composite VA pill labels when the read is not composite-based. */
+  compositeVaOptions?: SelectOption<CompositeValuePosition>[];
 }
 
 export interface TimeframeToolDisplay {
@@ -197,6 +201,7 @@ const DAILY_NARRATIVE: TimeframeNarrativeConfig = {
       type: 'composite_va',
       label: 'Price relative to prior day / developing value',
       prompt: 'Above · Below · Inside value area',
+      compositeVaOptions: DEVELOPING_VALUE_POSITION_OPTIONS,
     },
     {
       key: 'auction_regime',
