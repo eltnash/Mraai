@@ -7,7 +7,12 @@ import { isStopPlacementValid } from './execution-risk.utils';
 import type { ExecutionFormValue } from './execution-block.types';
 import type { GatekeeperStepKey } from './gatekeeper-form.types';
 import type { GatekeeperFormValue } from './gatekeeper-form.types';
-import { createGatekeeperForm, syncGatekeeperFormValidators } from './gatekeeper-form.factory';
+import {
+  createGatekeeperForm,
+  isDailyNarrativeComplete,
+  isHtfContextJournalComplete,
+  syncGatekeeperFormValidators,
+} from './gatekeeper-form.factory';
 import {
   GATEKEEPER_STEP_LABELS,
   type GatekeeperDraftMedia,
@@ -61,15 +66,11 @@ function isContextComplete(form: FormGroup, media: GatekeeperDraftMedia): boolea
     return false;
   }
 
-  const journals = context.get('timeframe_journals') as FormGroup;
-  return selected.every((tf) => {
-    const block = journals.get(tf) as FormGroup;
-    return block.valid && hasHtfMedia(media, tf);
-  });
+  return selected.every((tf) => isHtfContextJournalComplete(form, tf) && hasHtfMedia(media, tf));
 }
 
 function isAuctionTypeComplete(form: FormGroup): boolean {
-  return (form.get('auction_type') as FormGroup).valid;
+  return (form.get('auction_type') as FormGroup).valid && isDailyNarrativeComplete(form);
 }
 
 function isLocationComplete(form: FormGroup, media: GatekeeperDraftMedia): boolean {

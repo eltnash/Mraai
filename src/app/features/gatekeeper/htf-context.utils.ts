@@ -59,7 +59,10 @@ export function mapContextStepToSnapshot(context: ContextStepValue): HtfContextS
     (tf) => context.analyzed_timeframes[tf],
   );
 
-  const timeframe_entries = selected.map((tf) => {
+  const timeframesForSnapshot = new Set<AnalyzedTimeframe>(selected);
+  timeframesForSnapshot.add('D');
+
+  const timeframe_entries = [...timeframesForSnapshot].map((tf) => {
     const journal = context.timeframe_journals[tf];
     return {
       timeframe: tf,

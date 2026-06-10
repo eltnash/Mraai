@@ -178,13 +178,31 @@ function createJournalBlock(fb: FormBuilder) {
   });
 }
 
+/** Daily narrative Q&A lives on the Auction Type step; other timeframes keep narrative on HTF Context. */
+function htfContextNarrativeFieldKeys(tf: AnalyzedTimeframe): TimeframeNarrativeFieldKey[] {
+  if (tf === 'D') {
+    return [];
+  }
+  return narrativeFieldKeysForTimeframe(tf);
+}
+
 function applyJournalValidators(block: FormGroup, enabled: boolean, tf: AnalyzedTimeframe): void {
   block.get('notes_content')?.setValidators(enabled ? [journalNotesContentValidator()] : []);
   block.get('notes_content')?.updateValueAndValidity({ emitEvent: false });
 
   const narrative = block.get('narrative') as FormGroup;
-  applyNarrativeFieldValidators(narrative, enabled, narrativeFieldKeysForTimeframe(tf));
+  applyNarrativeFieldValidators(narrative, enabled, htfContextNarrativeFieldKeys(tf));
   narrative.updateValueAndValidity({ emitEvent: false });
+}
+
+function applyDailyNarrativeValidators(journals: FormGroup): void {
+  const narrative = (journals.get('D') as FormGroup).get('narrative') as FormGroup;
+  applyNarrativeFieldValidators(narrative, true, narrativeFieldKeysForTimeframe('D'));
+  narrative.updateValueAndValidity({ emitEvent: false });
+}
+
+function resetJournalNotes(block: FormGroup): void {
+  block.get('notes_content')?.setValue(EMPTY_TAGGED_NOTES, { emitEvent: false });
 }
 
 function resetJournalBlock(block: FormGroup): void {
@@ -282,11 +300,17 @@ export function createGatekeeperForm(fb: FormBuilder) {
       const block = journals.get(tf) as FormGroup;
       applyJournalValidators(block, enabled === true, tf);
       if (!enabled) {
-        resetJournalBlock(block);
+        if (tf === 'D') {
+          resetJournalNotes(block);
+        } else {
+          resetJournalBlock(block);
+        }
       }
       block.updateValueAndValidity({ emitEvent: true });
     });
   });
+
+  applyDailyNarrativeValidators(journals);
 
   return form;
 }
@@ -301,5 +325,23 @@ export function syncGatekeeperFormValidators(form: FormGroup): void {
     applyJournalValidators(journals.get(tf) as FormGroup, enabled, tf);
   });
 
+  applyDailyNarrativeValidators(journals);
+
   form.updateValueAndValidity({ emitEvent: false });
+}
+
+export function dailyNarrativeGroup(form: FormGroup): FormGroup {
+  return (form.get('context.timeframe_journals.D.narrative') as FormGroup) ?? form;
+}
+
+export function isDailyNarrativeComplete(form: FormGroup): boolean {
+  return dailyNarrativeGroup(form).valid;
+}
+
+export function isHtfContextJournalComplete(form: FormGroup, tf: AnalyzedTimeframe): boolean {
+  const block = (form.get('context.timeframe_journals') as FormGroup).get(tf) as FormGroup;
+  if (tf === 'D') {
+    return (block.get('notes_content') as AbstractControl).valid;
+  }
+  return block.valid;
 }

@@ -43,7 +43,12 @@ import {
   playbookTagSeverity,
   type AuctionPlaybook,
 } from './auction-playbook.utils';
-import { createGatekeeperForm, syncGatekeeperFormValidators } from './gatekeeper-form.factory';
+import {
+  createGatekeeperForm,
+  isDailyNarrativeComplete,
+  isHtfContextJournalComplete,
+  syncGatekeeperFormValidators,
+} from './gatekeeper-form.factory';
 import type { ExecutionPillarStepKey, GatekeeperFormValue, GatekeeperStepKey } from './gatekeeper-form.types';
 import type { ExecutionFormValue, GatekeeperSubmitResult } from './execution-block.types';
 import { isStopPlacementValid } from './execution-risk.utils';
@@ -414,13 +419,13 @@ export class GatekeeperWizardComponent {
       return (
         this.stepGroup('context').valid &&
         selected.length > 0 &&
-        selected.every((tf) => this.journalGroup(tf).valid) &&
+        selected.every((tf) => isHtfContextJournalComplete(this.form, tf)) &&
         this.screenshotDrafts.hasHtfDraftsFor(selected)
       );
     }
 
     if (key === 'auction_type') {
-      return this.auctionTypeGroup().valid;
+      return this.auctionTypeGroup().valid && isDailyNarrativeComplete(this.form);
     }
 
     if (!this.isStepValid('auction_type')) {
@@ -465,7 +470,10 @@ export class GatekeeperWizardComponent {
 
   protected isTimeframeComplete(tf: AnalyzedTimeframe): boolean {
     this.screenshotDrafts.revisionSnapshot();
-    return this.journalGroup(tf).valid && this.screenshotDrafts.hasDraft({ kind: 'htf', id: tf });
+    return (
+      isHtfContextJournalComplete(this.form, tf) &&
+      this.screenshotDrafts.hasDraft({ kind: 'htf', id: tf })
+    );
   }
 
   protected selectedHints(options: { value: string; hint?: string }[], values: string[] | null): string {
@@ -544,6 +552,9 @@ export class GatekeeperWizardComponent {
       this.selectedTimeframes().forEach((tf) => {
         this.journalGroup(tf).markAllAsTouched();
       });
+    }
+    if (key === 'auction_type') {
+      this.narrativeGroup('D').markAllAsTouched();
     }
     if (key === 'location') {
       this.form.controls.is_retest.markAsTouched();
